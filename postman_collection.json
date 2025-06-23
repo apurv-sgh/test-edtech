@@ -1,0 +1,414 @@
+
+{
+  "info": {
+    "name": "EdTech Platform API",
+    "description": "Complete API collection for EdTech Platform",
+    "version": "2.0.0"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "User Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Student\",\n  \"email\": \"student@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"student\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "User Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teacher Authentication",
+      "item": [
+        {
+          "name": "Teacher Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Jane Teacher\",\n  \"email\": \"teacher@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+1234567890\",\n  \"specialization\": [\"Mathematics\", \"Physics\"],\n  \"qualifications\": \"PhD in Mathematics\",\n  \"experience\": 10,\n  \"bio\": \"Experienced mathematics teacher with 10 years of experience.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/teachers/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "teachers", "register"]
+            }
+          }
+        },
+        {
+          "name": "Teacher Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teacher@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/teachers/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "teachers", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Teacher Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/teachers/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "teachers", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get All Teachers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/teachers/all?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "teachers", "all"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Course Management",
+      "item": [
+        {
+          "name": "Create Course",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Advanced Mathematics\",\n  \"description\": \"Comprehensive course covering advanced mathematical concepts\",\n  \"category\": \"STEM\",\n  \"subject\": \"Mathematics\",\n  \"level\": \"advanced\",\n  \"duration\": 40,\n  \"price\": 199,\n  \"syllabus\": [\n    {\n      \"module\": \"Calculus\",\n      \"topics\": [\"Derivatives\", \"Integrals\", \"Applications\"],\n      \"duration\": 15\n    }\n  ],\n  \"prerequisites\": [\"Basic Calculus\", \"Algebra\"],\n  \"learningOutcomes\": [\"Master advanced calculus\", \"Solve complex problems\"],\n  \"tags\": [\"mathematics\", \"calculus\", \"advanced\"],\n  \"maxStudents\": 50\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/courses/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", "create"]
+            }
+          }
+        },
+        {
+          "name": "Get All Courses",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/courses/all?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", "all"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Teacher Courses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/courses/my-courses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", "my-courses"]
+            }
+          }
+        },
+        {
+          "name": "Update Course",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Course Title\",\n  \"price\": 249\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/courses/{{course_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", "{{course_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notes Management",
+      "item": [
+        {
+          "name": "Upload Notes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Calculus Fundamentals",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Comprehensive notes on calculus fundamentals",
+                  "type": "text"
+                },
+                {
+                  "key": "subject",
+                  "value": "Mathematics",
+                  "type": "text"
+                },
+                {
+                  "key": "topic",
+                  "value": "Calculus",
+                  "type": "text"
+                },
+                {
+                  "key": "tags",
+                  "value": "calculus, mathematics, derivatives",
+                  "type": "text"
+                },
+                {
+                  "key": "visibility",
+                  "value": "public",
+                  "type": "text"
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/notes/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notes", "upload"]
+            }
+          }
+        },
+        {
+          "name": "Get All Notes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/notes/all?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notes", "all"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Teacher Notes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notes/my-notes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notes", "my-notes"]
+            }
+          }
+        },
+        {
+          "name": "Download Note File",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/notes/download/{{note_id}}/0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notes", "download", "{{note_id}}", "0"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Live Sessions",
+      "item": [
+        {
+          "name": "Create Live Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Advanced Calculus Live Session\",\n  \"description\": \"Interactive session on advanced calculus concepts\",\n  \"subject\": \"Mathematics\",\n  \"scheduledTime\": \"2024-12-25T10:00:00Z\",\n  \"duration\": 90,\n  \"maxParticipants\": 50\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/live-sessions/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "live-sessions", "create"]
+            }
+          }
+        },
+        {
+          "name": "Get All Live Sessions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/live-sessions/all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "live-sessions", "all"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://0.0.0.0:5000",
+      "type": "string"
+    },
+    {
+      "key": "teacher_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "course_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "note_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

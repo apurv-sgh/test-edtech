@@ -1,0 +1,136 @@
+
+.success-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.success-card {
+  background: white;
+  border-radius: 24px;
+  padding: 3rem;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.success-header {
+  margin-bottom: 3rem;
+}
+
+.edtech-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #8b5cf6;
+  font-weight: 600;
+}
+
+.logo-icon {
+  background: #8b5cf6;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.success-icon {
+  margin-bottom: 2rem;
+}
+
+.check-circle {
+  width: 100px;
+  height: 100px;
+  background: #8b5cf6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.check-circle::before {
+  content: '';
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border: 3px solid #8b5cf6;
+  border-radius: 50%;
+  opacity: 0.3;
+}
+
+.check-mark {
+  color: white;
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+
+.success-content h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+}
+
+.success-content p {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-bottom: 3rem;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+.start-btn {
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 150px;
+}
+
+.start-btn:hover {
+  background: #7c3aed;
+}
+
+@media (max-width: 768px) {
+  .success-container {
+    padding: 1rem;
+  }
+
+  .success-card {
+    padding: 2rem;
+  }
+
+  .check-circle {
+    width: 80px;
+    height: 80px;
+  }
+
+  .check-circle::before {
+    width: 100px;
+    height: 100px;
+  }
+
+  .check-mark {
+    font-size: 2rem;
+  }
+}
