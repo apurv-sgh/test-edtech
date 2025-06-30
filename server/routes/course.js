@@ -1,4 +1,3 @@
-
 const express = require('express');
 const Course = require('../models/Course');
 const Teacher = require('../models/Teacher');
@@ -65,7 +64,7 @@ router.post('/create', authenticateToken, async (req, res) => {
 });
 
 // Update course
-router.put('/update/:courseId', authenticateToken, async (req, res) => {
+router.put('/:courseId', authenticateToken, async (req, res) => {
   try {
     const { courseId } = req.params;
     const teacherId = req.user.teacherId || req.user.userId;

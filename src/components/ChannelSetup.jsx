@@ -26,6 +26,9 @@ export default function ChannelSetup({ onNext, onBack }) {
     <div className="channel-setup-container">
       <div className="setup-card">
         <div className="setup-header">
+          <button className="back-btn" onClick={onBack}>
+            ← Back to Dashboard
+          </button>
           <div className="edtech-logo">
             <span className="logo-icon">🎓</span>
             <span>EDTECH</span>

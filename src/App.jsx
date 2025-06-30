@@ -1,15 +1,19 @@
-
 import './App.css'
 import { useState } from 'react'
+import { useTeacherAuth } from './services/useAuth'
 import ChannelSetup from './components/ChannelSetup'
 import AvatarUpload from './components/AvatarUpload'
 import SuccessPage from './components/SuccessPage'
 import UploadVideos from './components/UploadVideos'
 import UploadNotes from './components/UploadNotes'
 import GroupDiscussion from './components/GroupDiscussion'
+import CourseManagement from './components/CourseManagement'
+import LiveSession from './components/LiveSession'
 
 export default function App() {
-  const [currentStep, setCurrentStep] = useState('dashboard') // dashboard, channelSetup, avatarUpload, success, uploadVideos, uploadNotes, groupDiscussion
+   useTeacherAuth();
+
+  const [currentStep, setCurrentStep] = useState('dashboard') // dashboard, channelSetup, avatarUpload, success, uploadVideos, uploadNotes, groupDiscussion,courseManagement
   const [activeTab, setActiveTab] = useState('overview')
   const [channelData, setChannelData] = useState({})
 
@@ -39,6 +43,14 @@ export default function App() {
     setCurrentStep('dashboard')
   }
 
+  const handleCourseManagement= () => {
+    setCurrentStep('courseManagement')
+  }
+
+  const handleLiveSessions= () => {
+    setCurrentStep('liveSessions')
+  }
+
   const handleUploadVideosClick = () => {
     setCurrentStep('uploadVideos')
   }
@@ -65,6 +77,14 @@ export default function App() {
 
   if (currentStep === 'success') {
     return <SuccessPage onStart={handleSuccessStart} />
+  }
+
+  if (currentStep === 'courseManagement') {
+    return <CourseManagement onNext={handleCourseManagement} onBack={handleBackToDashboard} />
+  }
+
+  if (currentStep === 'liveSessions') {
+    return <LiveSession onNext={handleLiveSessions} onBack={handleBackToDashboard} />
   }
 
   if (currentStep === 'uploadVideos') {
@@ -111,6 +131,12 @@ export default function App() {
             </li>
             <li onClick={handleCreateChannelClick} style={{ cursor: 'pointer' }}>
               <span>👥</span> New Channel
+            </li>
+            <li onClick={handleCourseManagement} style={{ cursor: 'pointer' }}>
+              <span>📚</span> Course Management
+            </li>
+            <li onClick={handleLiveSessions} style={{ cursor: 'pointer' }}>
+              <span>🎥</span> Live Sessions
             </li>
             <li onClick={handleUploadVideosClick} style={{ cursor: 'pointer' }}>
               <span>🎬</span> Upload Videos

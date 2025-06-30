@@ -1,4 +1,3 @@
-
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -186,31 +185,6 @@ router.get('/my-notes', authenticateToken, async (req, res) => {
   }
 });
 
-// Get single note
-router.get('/:noteId', async (req, res) => {
-  try {
-    const note = await Note.findById(req.params.noteId)
-      .populate('teacher', 'name avatar bio')
-      .populate('course', 'title description');
-
-    if (!note) {
-      return res.status(404).json({ message: 'Note not found' });
-    }
-
-    // Increment views
-    note.views += 1;
-    await note.save();
-
-    res.json({
-      success: true,
-      note
-    });
-  } catch (error) {
-    console.error('Get note error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
 // Download note file
 router.get('/download/:noteId/:fileIndex', async (req, res) => {
   try {
@@ -240,6 +214,40 @@ router.get('/download/:noteId/:fileIndex', async (req, res) => {
     res.download(filePath, file.originalName);
   } catch (error) {
     console.error('Download file error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Like/Unlike note
+router.post('/:noteId/like', authenticateToken, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const userId = req.user.userId;
+
+    const note = await Note.findById(noteId);
+    if (!note) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    const likeIndex = note.likes.findIndex(like => like.user.toString() === userId);
+    
+    if (likeIndex > -1) {
+      // Unlike
+      note.likes.splice(likeIndex, 1);
+    } else {
+      // Like
+      note.likes.push({ user: userId });
+    }
+
+    await note.save();
+
+    res.json({
+      success: true,
+      message: likeIndex > -1 ? 'Note unliked' : 'Note liked',
+      likesCount: note.likes.length
+    });
+  } catch (error) {
+    console.error('Like note error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -312,38 +320,39 @@ router.delete('/:noteId', authenticateToken, async (req, res) => {
   }
 });
 
-// Like/Unlike note
-router.post('/:noteId/like', authenticateToken, async (req, res) => {
-  try {
-    const { noteId } = req.params;
-    const userId = req.user.userId;
+// Get single note
+const mongoose = require('mongoose');
 
-    const note = await Note.findById(noteId);
+router.get('/fetch/:noteId', async (req, res) => {
+  const { noteId } = req.params;
+
+  // Validate ObjectId before querying
+  if (!mongoose.Types.ObjectId.isValid(noteId)) {
+    return res.status(400).json({ message: 'Invalid note ID format' });
+  }
+
+  try {
+    const note = await Note.findById(noteId)
+      .populate('teacher', 'name avatar bio')
+      .populate('course', 'title description');
+
     if (!note) {
       return res.status(404).json({ message: 'Note not found' });
     }
 
-    const likeIndex = note.likes.findIndex(like => like.user.toString() === userId);
-    
-    if (likeIndex > -1) {
-      // Unlike
-      note.likes.splice(likeIndex, 1);
-    } else {
-      // Like
-      note.likes.push({ user: userId });
-    }
-
+    // Increment views
+    note.views += 1;
     await note.save();
 
     res.json({
       success: true,
-      message: likeIndex > -1 ? 'Note unliked' : 'Note liked',
-      likesCount: note.likes.length
+      note
     });
   } catch (error) {
-    console.error('Like note error:', error);
+    console.error('Get note error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
 
 module.exports = router;

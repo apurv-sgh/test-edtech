@@ -1,9 +1,8 @@
-
 import axios from 'axios';
 
 const API_BASE_URL = 'http://127.0.0.1:4000/api';
 
-// Create axios instance with default config
+//axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -11,14 +10,23 @@ const api = axios.create({
   },
 });
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  console.log("Token used for upload:", token);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // Add token to requests if available
+/*
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-});
+}); 
+*/
+
 
 // Teacher Authentication
 export const teacherAuth = {
@@ -29,9 +37,16 @@ export const teacherAuth = {
   getAllTeachers: (params) => api.get('/teachers/all', { params }),
 };
 
+
 // Course Management
 export const courseAPI = {
-  create: (data) => api.post('/courses/create', data),
+  create: (data) => {
+  return axios.post(`${API_BASE_URL}/courses/create`, data, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  },
   getAll: (params) => api.get('/courses/all', { params }),
   getMyCourses: (params) => api.get('/courses/my-courses', { params }),
   getById: (id) => api.get(`/courses/${id}`),
@@ -40,21 +55,29 @@ export const courseAPI = {
   enroll: (id) => api.post(`/courses/${id}/enroll`),
 };
 
+
 // Notes Management
 export const notesAPI = {
-  upload: (formData) => api.post('/notes/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data,' }
-  }),
+  upload: (formData) => {
+  return axios.post(`${API_BASE_URL}/notes/upload`, formData, {
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  },
   getAll: (params) => api.get('/notes/all', { params }),
   getMyNotes: (params) => api.get('/notes/my-notes', { params }),
-  getById: (id) => api.get(`/notes/${id}`),
-  update: (id, data) => api.put(`/notes/${id}`, data),
-  delete: (id) => api.delete(`/notes/${id}`),
   download: (noteId, fileIndex) => {
     window.open(`${API_BASE_URL}/notes/download/${noteId}/${fileIndex}`, '_blank');
   },
   like: (id) => api.post(`/notes/${id}/like`),
+  update: (id, data) => api.put(`/notes/${id}`, data),
+  delete: (id) => api.delete(`/notes/${id}`),
+  getById: (id) => api.get(`/notes/fetch/${id}`),
+ 
 };
+
 
 // Videos API
 export const videosAPI = {
@@ -71,6 +94,7 @@ export const videosAPI = {
   }),
   delete: (id) => api.delete(`/videos/${id}`),
 };
+
 
 // Group Chat API
 export const groupChatAPI = {
@@ -94,6 +118,7 @@ export const liveSessionAPI = {
   start: (id) => api.post(`/live-sessions/${id}/start`),
   stop: (id) => api.post(`/live-sessions/${id}/stop`),
 };
+
 
 // User Authentication (existing)
 export const userAuth = {

@@ -1,7 +1,7 @@
 
 const axios = require('axios');
 
-const baseURL = 'http://localhost:5000';
+const baseURL = 'http://localhost:4000';
 let authToken = '';
 
 async function testBackend() {

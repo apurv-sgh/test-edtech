@@ -6,7 +6,7 @@ export default function UploadNotes({ onBack }) {
   const [formData, setFormData] = useState({
     title: '',
     subject: '',
-    course: '',
+    topic: '',
     description: '',
     tags: '',
     visibility: 'public'
@@ -42,7 +42,7 @@ export default function UploadNotes({ onBack }) {
       // Add form fields
       formDataToSend.append('title', formData.title)
       formDataToSend.append('subject', formData.subject)
-      formDataToSend.append('course', formData.course)
+      formDataToSend.append('topic', formData.topic)
       formDataToSend.append('description', formData.description)
       formDataToSend.append('content', noteContent)
       formDataToSend.append('tags', formData.tags)
@@ -55,20 +55,21 @@ export default function UploadNotes({ onBack }) {
       
       // Make API call (for now, just simulate success)
       const response = await notesAPI.upload(formDataToSend)
-      
+      console.log("API upload response:", response);
+
       if (response.data.success) {
         alert('Notes uploaded successfully!')
 
-      /*console.log('Uploading notes...', {
+      console.log('Uploading notes...', {
         title: formData.title,
         subject: formData.subject,
-        course: formData.course,
+        topic: formData.topic,
         description: formData.description,
         content: noteContent,
         tags: formData.tags,
         visibility: formData.visibility,
         filesCount: selectedFiles.length
-      })*/
+      })
       
       alert('Notes uploaded successfully!')
       
@@ -76,7 +77,7 @@ export default function UploadNotes({ onBack }) {
       setFormData({
         title: '',
         subject: '',
-        course: '',
+        topic: '',
         description: '',
         tags: '',
         visibility: 'public'
@@ -141,13 +142,13 @@ export default function UploadNotes({ onBack }) {
               </div>
 
               <div className="form-group">
-                <label htmlFor="course">Select Course</label>
+                <label htmlFor="topic">Select Topic</label>
                 <input
                   type="text"
-                  id="course"
-                  value={formData.course}
-                  onChange={(e) => handleInputChange('course', e.target.value)}
-                  placeholder="Enter specific Course Name or Id"
+                  id="topic"
+                  value={formData.topic}
+                  onChange={(e) => handleInputChange('topic', e.target.value)}
+                  placeholder="Enter specific Topic Name or Id"
                 />
               </div>
 

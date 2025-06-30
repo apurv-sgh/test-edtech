@@ -33,7 +33,6 @@ const NoteSchema = new mongoose.Schema({
   },
   topic: {
     type: String,
-    required: true
   },
   files: [{
     filename: String,

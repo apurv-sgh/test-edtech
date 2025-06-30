@@ -12,8 +12,9 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: 'http://localhost:5173',
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
   }
 });
 
@@ -27,9 +28,10 @@ if (!fs.existsSync(uploadsDir)) {
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'http://localhost:3000',
+    'http://localhost:4000',
     'http://127.0.0.1:5173',
-    'http://127.0.0.1:3000',
+    'http://127.0.0.1:4000',
+    'http://192.168.31.180:5173',
   ],
   credentials: true
 }));
@@ -52,7 +54,7 @@ const liveSessionRoutes = require('./routes/liveSession');
 const groupChatRoutes = require('./routes/groupChat');
 
 // Static file serving for uploads
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
