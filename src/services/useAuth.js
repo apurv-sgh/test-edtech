@@ -5,7 +5,7 @@ export function useTeacherAuth() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let token = localStorage.getItem("teacherToken");
+    let token = localStorage.getItem("token");
     console.log(token);
 
     // If URL contains token (first-time redirect)
