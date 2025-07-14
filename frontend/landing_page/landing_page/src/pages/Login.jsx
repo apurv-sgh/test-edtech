@@ -28,7 +28,7 @@ const Login = () => {
 
     const isStudent = role === 'student';
     const endpoint = isStudent
-      ? 'https://zegnite-sdi-c-1.onrender.com/api/auth/login'
+      ? 'http://127.0.0.1:5000/api/auth/login'
       : 'http://127.0.0.1:4000/api/teachers/login';
 
     try {
