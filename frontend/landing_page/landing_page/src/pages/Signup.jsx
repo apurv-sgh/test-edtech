@@ -21,7 +21,7 @@ const SignUp = () => {
     e.preventDefault();
     const isStudent = role === 'student';
     const endpoint = isStudent
-      ? 'https://zegnite-sdi-c-1.onrender.com/api/auth/register'
+      ? 'http://127.0.0.1:5000/api/auth/register'
       : 'http://127.0.0.1:4000/api/teachers/register';
     console.log(role, endpoint)
     console.log("Sending to backend:", form);
