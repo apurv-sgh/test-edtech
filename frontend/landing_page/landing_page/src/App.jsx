@@ -6,13 +6,6 @@ import SignUp from './pages/Signup';
 import Features from './pages/Features';
 import Contact from './pages/Contact';
 import NotFound from './pages/NotFound';
-import DomainDetailsPage from './pages/DomainDetailsPage';
-import CourseHubPage from './pages/CourseHubPage';
-import SubjectDetailsPage from './pages/SubjectDetailsPage';
-import LectureTitle from './components/LectureTitle';
-import LiveClassesPage from './pages/LiveClassesPage';
-import OpportunityPage from './pages/OpportunityPage';
-import ChannelProfilePage from './pages/ChannelProfilePage';
 import Courses from './components/Courses';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -43,21 +36,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-
-          <Route path="/courses/:categorySlug" element={<CourseHubPage />} />
-
-          <Route path="/courses/:categorySlug/:subjectSlug" element={<SubjectDetailsPage />} />
-
-          <Route path="/channel/:channelSlug" element={<ChannelProfilePage />} />
-
-          <Route path="/opportunity/:opportunitySlug" element={<OpportunityPage />} />
-
-          <Route path='/live-classes' element={<LiveClassesPage />} />
-
-          <Route path="/domain-details/:domainSlug" element={<DomainDetailsPage />} />
-
-          <Route path='/lecture' element={<LectureTitle />} />
-
+          {/* <Route index element={<Bubbles />} /> */}
           <Route path="features" element={<Features />} />
           <Route path="contact" element={<Contact />} />
           <Route path="courses" element={<Courses />} />

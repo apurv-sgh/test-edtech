@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // baseURL: 'http://localhost:5000',
-  baseURL: 'https://zegnite-sdi-c-1.onrender.com/',
+  baseURL: 'http://localhost:5000',
   withCredentials: true, // Set to true if using cookies/auth
 });
 
