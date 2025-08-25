@@ -1,32 +1,47 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { FiPlus, FiSearch, FiVideo, FiTrash, FiX, FiDownload } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getMyVideos, uploadVideo, deleteVideo } from '../api/videosApi';
+import { toast } from 'react-toastify';
 
-// --- DUMMY DATA for initial videos ---
-const initialVideos = [
-  { id: 1, title: 'Introduction to Quantum Mechanics', category: 'Physics', fileName: 'quantum_intro.mp4', fileSize: '152.3 MB' },
-  { id: 2, title: 'Mastering Alkane Reactions', category: 'Chemistry', fileName: 'alkane_reactions.mp4', fileSize: '250.1 MB' },
-  { id: 3, title: 'Solving Advanced Limits', category: 'Maths', fileName: 'advanced_limits.mov', fileSize: '98.5 MB' },
-];
 const videoCategories = ['All', 'Physics', 'Chemistry', 'Maths', 'Biology'];
 
 // --- Reusable Modal Component for the Upload Form ---
-const VideoUploadModal = ({ isOpen, onClose, onUpload }) => {
+const VideoUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState(videoCategories[1]);
   const [description, setDescription] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const handleFileChange = (e) => { if (e.target.files[0]) { setFile(e.target.files[0]); } };
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file || !title) { alert('Please provide a title and select a file.'); return; }
-    const newVideo = { id: Date.now(), title, category, description, fileName: file.name, fileSize: `${(file.size / 1024 / 1024).toFixed(1)} MB` };
-    onUpload(newVideo);
-    onClose();
+    if (!file || !title) {
+      toast.error('Please provide a title and select a video file.');
+      return;
+    }
+    setUploading(true);
+    // FormData is required for file uploads
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('subject', category); // Your backend expects 'subject'
+    formData.append('description', description);
+    formData.append('video', file); // CRITICAL: This name must match upload.single('video') in your backend
+    
+    try {
+      await uploadVideo(formData);
+      onUploadSuccess();
+      toast.success('Video uploaded successfully!');
+      onClose();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to upload video.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -41,7 +56,7 @@ const VideoUploadModal = ({ isOpen, onClose, onUpload }) => {
           <div><label>Category</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">{videoCategories.slice(1).map(c => <option key={c}>{c}</option>)}</select></div>
           <div><label>Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows="3" className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg" placeholder="A brief summary of the video..."></textarea></div>
           <div><label>Video File</label><input type="file" onChange={handleFileChange} required accept="video/mp4,video/x-m4v,video/*" className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"/></div>
-          <button type="submit" className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-focus">Upload Video</button>
+          <button type="submit" disabled={uploading} className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-focus diabled:opacity-50">{uploading ? 'Uploading...' : 'Upload Video'}</button>
         </form>
       </motion.div>
     </motion.div>
@@ -50,15 +65,41 @@ const VideoUploadModal = ({ isOpen, onClose, onUpload }) => {
 
 const UploadVideosPage = () => {
   const { user } = useContext(AuthContext);
-  const [videos, setVideos] = useState(initialVideos);
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
-  const handleUploadVideo = (newVideo) => setVideos(prev => [newVideo, ...prev]);
-  const handleDeleteVideo = (id) => {
+  const fetchVideos = async () => {
+    try {
+      setLoading(true);
+      const response = await getMyVideos();
+      // Correctly access the 'videos' array from the response
+      setVideos(response.data.videos || []);
+    } catch (error) {
+      toast.error('Could not fetch your videos.');
+      setVideos([]); // Set to empty array on error to prevent crashes
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === 'teacher') {
+      fetchVideos();
+    }
+  }, [user]);
+
+  const handleDeleteVideo = async (videoId) => {
     if (window.confirm('Are you sure you want to delete this video?')) {
-      setVideos(videos.filter(v => v.id !== id));
+      try {
+        await deleteVideo(videoId);
+        toast.success('Video deleted successfully!');
+        fetchVideos(); // Refresh the list
+      } catch (error) {
+        toast.error('Failed to delete video.');
+      }
     }
   };
   
@@ -68,13 +109,15 @@ const UploadVideosPage = () => {
     return matchesCategory && matchesSearch;
   });
 
+   if (loading) { return <div className="p-8 text-center">Loading your videos...</div>; }
+
   if (user?.role !== 'teacher') {
     return ( <div className="text-center py-20 min-h-screen"><h1 className="text-3xl font-bold">Access Denied</h1><p className="mt-2 text-slate-500">Only teachers can manage videos.</p></div> );
   }
 
   return (
     <>
-      <VideoUploadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onUpload={handleUploadVideo} />
+      <VideoUploadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onUploadSuccess={fetchVideos} />
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <h1 className="text-3xl font-bold text-slate-800 dark:text-white">Upload Videos</h1>
@@ -88,12 +131,6 @@ const UploadVideosPage = () => {
             <div className="md:col-span-2">
               <label className="text-sm font-medium">Search Videos</label>
               <div className="relative mt-1"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input type="text" placeholder="Search by title..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg"/></div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Filter by Category</label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {videoCategories.map(cat => ( <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-3 py-1.5 text-sm font-semibold rounded-full ${activeCategory === cat ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>{cat}</button>))}
-              </div>
             </div>
           </div>
         </div>
@@ -110,7 +147,7 @@ const UploadVideosPage = () => {
             <AnimatePresence>
               {filteredVideos.map(video => (
                 <motion.div
-                  key={video.id} layout
+                  key={video._id} layout
                   initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -50 }}
                   className="bg-white dark:bg-dark-card p-4 rounded-xl shadow-md flex items-center justify-between gap-4"
                 >
@@ -125,7 +162,7 @@ const UploadVideosPage = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs bg-primary/10 text-primary font-semibold px-2 py-1 rounded-full">{video.category}</span>
-                    <button onClick={() => handleDeleteVideo(video.id)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-full" title="Delete"><FiTrash/></button>
+                    <button onClick={() => handleDeleteVideo(video._id)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-full" title="Delete"><FiTrash/></button>
                   </div>
                 </motion.div>
               ))}

@@ -69,6 +69,11 @@ import IndustryExperts from './components/experts/IndustryExperts';
 import IndustryExpertProfile from './components/experts/IndustryExpertProfile';
 import IndustryExpertDashboard from './components/experts/IndustryExpertDashboard';
 import BecomeIndustryExpertForm from './components/experts/BecomeIndustryExpertForm';
+import TestInstructionsPage from './components/TestInstructionsPage';
+import TestPage from './components/TestPage';
+import { mockQuestions } from './data/mockQuestions';
+import QuestionEditor from './components/QuestionEditor';
+import HackathonPage from './components/HackathonPage';
 
 function App() {
   return (
@@ -112,6 +117,11 @@ function App() {
           <Route path="studyplan" element={<StudyPlan />} />
           <Route path="tests" element={<Tests />} />
           <Route path="course/:courseId" element={<CourseDetails />} />
+          <Route path="/test-instructions" element={<TestInstructionsPage />} />
+          <Route path="/test-page" element={ <TestPage questions={mockQuestions} />} />
+          <Route path='/question-editor' element={ <QuestionEditor />} />
+          <Route path='/hackathon' element={<HackathonPage />} />
+        
         </Route>
 
         <Route path="/login" element={<Login />} />

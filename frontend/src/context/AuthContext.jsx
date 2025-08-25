@@ -1,5 +1,5 @@
 import React, { createContext,useContext, useState, useEffect } from 'react';
-import { loginStudent, registerStudent, getProfile, login as apiLogin, register as apiRegister} from '../api/auth';
+import { loginStudent, loginTeacher, registerStudent, registerTeacher, getProfile, login as apiLogin, register as apiRegister} from '../api/auth';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,8 +22,12 @@ export const AuthProvider = ({ children }) => {
     try {
       let res;
       // Use different endpoints based on role
-      if (credentials.role === 'student' || credentials.role === 'teacher') {
+      if (credentials.role === 'student' ) {
         res = await loginStudent(credentials);
+      }else if (credentials.role === 'teacher') {
+        res = await loginTeacher(credentials);
+        // Ensure role is set to teacher in user object
+        if (res.data) res.data.role = 'teacher';
       } else {
         res = await apiLogin(credentials);
       }
@@ -60,6 +64,8 @@ export const AuthProvider = ({ children }) => {
         res = await registerStudent(data);
       } else if (data.role === 'teacher') {
         res = await registerTeacher(data);
+        // Ensure role is set to teacher in user object
+        if (res.data) res.data.role = 'teacher';
       } else {
         res = await apiRegister(data);
       }

@@ -5,8 +5,8 @@ import TopCategories from '../components/TopCategories';
 import AllDomains from '../components/AllDomains';
 import Opportunities from '../components/Opportunities';
 import Cta from '../components/Cta';
-// import FeatureCoursesSection from './FeatureCourseSection';
-import FeaturedCourses from '../components/FeaturedCourses';
+import FeatureCoursesSection from './FeatureCourseSection';
+// import FeaturedCourses from '../components/FeaturedCourses';
 import HeroPage from './HeroPage';
 import CounsellorsSection from '../components/counsellors/CounsellorsSection';
 import Teachers from '../components/Teachers';
@@ -33,7 +33,7 @@ const Home = () => {
       {/* Featured Courses Section */}
       <section className="py-20 bg-slate-50 dark:bg-slate-900/50">
         <div className="container mx-auto px-6">
-          <FeaturedCourses />
+          <FeatureCoursesSection />
         </div>
       </section>
 

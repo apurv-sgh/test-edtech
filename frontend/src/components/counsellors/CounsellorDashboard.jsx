@@ -57,7 +57,7 @@ const CounsellorDashboard = () => {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/counsellors/me', {
+      const res = await axios.get('http://localhost:5000/api/counsellors/me', {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
       setProfile(res.data);
@@ -97,7 +97,7 @@ const CounsellorDashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       // Fetch availability dashboard data which includes stats
-      const availabilityRes = await axios.get('/api/counsellor/availability/dashboard', {
+      const availabilityRes = await axios.get('http://localhost:5000/api/counsellor/availability/dashboard', {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
       
@@ -172,7 +172,7 @@ const CounsellorDashboard = () => {
       if (profilePicture) {
         formData.append('profilePicture', profilePicture);
       }
-      const res = await axios.post('/api/counsellors/profile', formData, {
+      const res = await axios.post('http://localhost:5000/api/counsellors/profile', formData, {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
       // Update local state immediately without page reload

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { FiBookOpen, FiPlus, FiEdit, FiTrash, FiX, FiVideo, FiFileText } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getMyCourses, createCourse, updateCourse, deleteCourse } from '../api/courseApi';
+import { toast } from 'react-toastify';
 
 // --- Reusable Modal Component for the Form ---
 const CourseModal = ({ isOpen, onClose, onSave, courseToEdit }) => {
@@ -31,6 +33,7 @@ const CourseModal = ({ isOpen, onClose, onSave, courseToEdit }) => {
         <h2 className="text-2xl font-bold mb-4">{courseToEdit ? 'Edit Course' : 'Create New Course'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div><label>Course Title</label><input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div>
+          <div className="flex gap-4"><div className="w-1/2"><label>Subject Name</label><input type="text" value={formData.subject} onChange={(e) => setFormData({...formData, subject: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div><div className="w-1/2"><label>Duration</label><input type="number" value={formData.duration} onChange={(e) => setFormData({...formData, duration: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div></div>
           <div className="flex gap-4"><div className="w-1/2"><label>Category</label><input type="text" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div><div className="w-1/2"><label>Level</label><select value={formData.level} onChange={(e) => setFormData({...formData, level: e.target.value})} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div></div>
           <div><label>Description</label><textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows="3" className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"></textarea></div>
           <button type="submit" className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-focus">{courseToEdit ? 'Save Changes' : 'Create Course'}</button>
@@ -42,24 +45,57 @@ const CourseModal = ({ isOpen, onClose, onSave, courseToEdit }) => {
 
 const CourseManagementPage = () => {
   const { user } = useContext(AuthContext);
-  const [courses, setCourses] = useState([]); // Start with an empty array for the "first time" experience
+  const [courses, setCourses] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
+const [loading, setLoading] = useState(true);
 
-  const handleSaveCourse = (courseData) => {
-    if (editingCourse) {
-      setCourses(courses.map(c => c.id === editingCourse.id ? { ...c, ...courseData } : c));
-      alert('Course updated successfully!');
-    } else {
-      setCourses([...courses, { ...courseData, id: Date.now(), videoCount: 0, notesCount: 0 }]);
-      alert('Course created successfully!');
+  // Fetch data from backend on page load
+  const fetchCourses = async () => {
+    try{
+      setLoading(true);
+      const response = await getMyCourses();
+      setCourses(response.data.courses);
+    } catch (error) {
+      toast.error('Could not fetch your courses. Please try again later.');
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-    setEditingCourse(null);
   };
 
-  const handleDeleteCourse = (id) => {
+  useEffect(() => {
+    if (user?.role === 'teacher') {
+      fetchCourses();
+    }
+  }, [user]);
+
+  // Handle save creation and update
+  const handleSaveCourse = async (courseData) => {
+    try {
+      if (editingCourse) {
+        await updateCourse(editingCourse._id, courseData);
+        toast.success('Course updated successfully!');
+      } else {
+        await createCourse(courseData);
+        toast.success('Course created successfully!');
+      }
+      fetchCourses(); // Refresh the list from the backend
+      setEditingCourse(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to save course.');
+    }
+  };
+  // Handle delete course
+  const handleDeleteCourse = async (courseId) => {
     if (window.confirm('Are you sure you want to delete this course?')) {
-      setCourses(courses.filter(c => c.id !== id));
+      try {
+        await deleteCourse(courseId);
+        toast.success('Course deleted successfully!');
+        fetchCourses(); // Refresh the list from the backend
+      } catch (error) {
+        toast.error('Failed to delete course.');
+      }
     }
   };
 
@@ -72,6 +108,10 @@ const CourseManagementPage = () => {
     setEditingCourse(course);
     setIsModalOpen(true);
   };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading your courses...</div>
+  }
 
   // Protected View for teachers only
   if (user?.role !== 'teacher') {
@@ -129,7 +169,7 @@ const CourseManagementPage = () => {
                   </div>
                   <div className="p-4 flex gap-2">
                     <button onClick={() => openEditModal(course)} className="w-1/2 bg-primary/10 text-primary font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-primary/20"><FiEdit/> Edit</button>
-                    <button onClick={() => handleDeleteCourse(course.id)} className="w-1/2 bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-500/20"><FiTrash/> Delete</button>
+                    <button onClick={() => handleDeleteCourse(course._id)} className="w-1/2 bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-500/20"><FiTrash/> Delete</button>
                   </div>
                 </motion.div>
               ))}

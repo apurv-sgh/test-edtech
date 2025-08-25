@@ -40,7 +40,7 @@ const Login = () => {
     const success = await login({ email: form.email, password: form.password, role: loginRole });
     if (success) {
       if (loginRole === 'teacher') {
-        navigate('/teachers');
+        navigate('/teacher-dashboard');
       } else if (loginRole === 'student') {
         navigate('/profile');
       } else if (loginRole === 'counsellor') {

@@ -60,7 +60,7 @@ const SignUp = () => {
           navigate('/become-industry-expert');
         }
       } else if (regRole === 'teacher') {
-        navigate('/teachers');
+        navigate('/teacher-dashboard');
       } else if (regRole === 'student') {
         navigate('/profile');
       } else if (regRole === 'counsellor') {

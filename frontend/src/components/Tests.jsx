@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getTests, createTest, deleteTest, getTestsForCourse, createTestForCourse } from '../api/tests';
 import { getCourses } from '../api/courses';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 
 const Tests = () => {
     const [tests, setTests] = useState([]);
@@ -20,6 +21,8 @@ const Tests = () => {
             .catch(() => {
                 setError('Failed to load tests');
                 toast.error('Failed to load tests');
+                console.log(error, "components");
+                console.error(error, "components");
             })
             .finally(() => setLoading(false));
     };
@@ -92,20 +95,22 @@ const Tests = () => {
                 </form>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {tests.map((test) => (
-                        <div key={test._id} className="relative group bg-white p-6 rounded-xl shadow-md">
-                            <h3 className="text-xl font-bold mb-2">{test.title}</h3>
-                            <p className="text-gray-600 mb-2">Subject: {test.subject}</p>
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-xs text-gray-500">{test.date}</span>
-                                <button
-                                    onClick={() => handleDelete(test._id)}
-                                    className="bg-red-500 text-white rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition"
-                                    title="Delete"
-                                >
-                                    Delete
-                                </button>
+                        <Link to='/question-editor'>
+                            <div key={test._id} className="relative group bg-white p-6 rounded-xl shadow-md">
+                                <h3 className="text-xl font-bold mb-2">{test.title}</h3>
+                                <p className="text-gray-600 mb-2">Subject: {test.subject}</p>
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs text-gray-500">{test.date}</span>
+                                    <button
+                                        onClick={() => handleDelete(test._id)}
+                                        className="bg-red-500 text-white rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition"
+                                        title="Delete"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        </Link>
                     ))}
                 </div>
             </div>

@@ -1,15 +1,11 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { FaBook, FaQuestionCircle, FaPlus, FaEdit, FaTrash, FaExclamationTriangle, FaStar } from 'react-icons/fa';
+import { getQuizzes, createQuiz, deleteQuiz, createQuizForCourse, updateQuiz } from '../api/quizzes';
+import { getCourses } from '../api/courses';
+import { toast } from 'react-toastify';
 
-// --- DUMMY DATA for Daily Quizzes ---
-const initialQuizzes = [
-  { id: 1, title: 'Mechanics - Force & Motion', subject: 'Physics', questions: 10, points: 20 },
-  { id: 2, title: 'Organic Chemistry - Alkanes', subject: 'Chemistry', questions: 15, points: 30 },
-  { id: 3, title: 'Modern History - The Revolt of 1857', subject: 'History', questions: 10, points: 10 },
-  { id: 4, title: 'Calculus - Limits & Derivatives', subject: 'Maths', questions: 12, points: 24 },
-];
 
 const subjects = ['Physics', 'Chemistry', 'Maths', 'History', 'Biology'];
 
@@ -19,7 +15,15 @@ const QuizForm = ({ onSave, quizToEdit, onCancelEdit }) => {
 
   useEffect(() => {
     if (quizToEdit) {
-      setFormData(quizToEdit);
+      setFormData({
+        title: quizToEdit.title ?? '',
+        subject: quizToEdit.subject ?? subjects[0],
+        questions: quizToEdit.questions ?? '',
+        points: quizToEdit.points ?? '',
+      });
+    } else {
+      // This will run when quizToEdit becomes null after saving/cancelling
+      setFormData({ title: '', subject: subjects[0], questions: '', points: '' });
     }
   }, [quizToEdit]);
 
@@ -28,24 +32,24 @@ const QuizForm = ({ onSave, quizToEdit, onCancelEdit }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.title || !formData.questions || !formData.points) {
-      alert('Please fill all fields.');
+      toast.warn('Please fill all fields.');
       return;
     }
     onSave(formData);
-    setFormData({ title: '', subject: subjects[0], questions: '', points: '' });
+    // setFormData({ title: '', subject: subjects[0], questions: '', points: '' });
   };
 
   return (
     <form onSubmit={handleSubmit} className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-lg space-y-4 sticky top-24">
       <h2 className="text-2xl font-bold">{quizToEdit ? 'Edit Quiz' : 'Create New Quiz'}</h2>
-      <div><label className="block text-sm font-medium">Quiz Title (e.g., Mechanics - Force & Motion)</label><input type="text" name="title" value={formData.title} onChange={handleChange} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div>
+      <div><label className="block text-sm font-medium">Quiz Title (e.g., Mechanics - Force & Motion)</label><input type="text" name="title" value={formData.title ?? ''} onChange={handleChange} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg" /></div>
       <div><label className="block text-sm font-medium">Subject</label><select name="subject" value={formData.subject} onChange={handleChange} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">{subjects.map(s => <option key={s}>{s}</option>)}</select></div>
       <div className="flex gap-4">
-        <div className="w-1/2"><label>Questions</label><input type="number" name="questions" value={formData.questions} onChange={handleChange} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div>
-        <div className="w-1/2"><label>Points</label><input type="number" name="points" value={formData.points} onChange={handleChange} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div>
+        <div className="w-1/2"><label>Questions</label><input type="number" name="questions" value={formData.questions ?? ''} onChange={handleChange} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg" /></div>
+        <div className="w-1/2"><label>Points</label><input type="number" name="points" value={formData.points ?? ''} onChange={handleChange} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg" /></div>
       </div>
       <button type="submit" className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-focus flex items-center justify-center gap-2">
-        {quizToEdit ? <><FaEdit/> Update Quiz</> : <><FaPlus/> Create Quiz</>}
+        {quizToEdit ? <><FaEdit /> Update Quiz</> : <><FaPlus /> Create Quiz</>}
       </button>
       {quizToEdit && <button type="button" onClick={onCancelEdit} className="w-full bg-slate-200 dark:bg-slate-600 font-bold py-2 rounded-lg">Cancel Edit</button>}
     </form>
@@ -54,23 +58,82 @@ const QuizForm = ({ onSave, quizToEdit, onCancelEdit }) => {
 
 const QuizzesPage = () => {
   const { user } = useContext(AuthContext);
-  const [quizzes, setQuizzes] = useState(initialQuizzes);
+  const [quizzes, setQuizzes] = useState([]);
   const [quizToEdit, setQuizToEdit] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [courses, setCourses] = useState([]);
+
+  const fetchQuizzes = () => {
+    setLoading(true);
+    const fetch = selectedCourse ? getQuizzesForCourse(selectedCourse) : getQuizzes();
+    fetch
+      .then(res => setQuizzes(res.data))
+      .catch(() => {
+        setError('Failed to load quizzes');
+        // toast.error('Failed to load quizzes');
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    getCourses().then(res => setCourses(res.data));
+  }, []);
+
+  useEffect(() => {
+    fetchQuizzes();
+    // eslint-disable-next-line
+  }, [selectedCourse]);
 
   const handleSaveQuiz = (quizData) => {
-    if (quizData.id) {
-      setQuizzes(quizzes.map(q => q.id === quizData.id ? quizData : q));
+    if (quizToEdit) {
+      // Update existing quiz
+      import('../api/quizzes').then(({ updateQuizDetails }) => {
+        updateQuizDetails(quizToEdit._id, quizData)
+          .then(() => {
+            toast.success('Quiz updated!');
+            setQuizToEdit(null);
+            fetchQuizzes();
+          })
+          .catch(err => {
+            toast.error(err.response?.data?.message || 'Failed to update quiz');
+          });
+      });
     } else {
-      setQuizzes([...quizzes, { ...quizData, id: Date.now() }]);
+      // Create new quiz
+      const create = selectedCourse 
+        ? createQuizForCourse(selectedCourse, quizData) 
+        : createQuiz(quizData);
+      create
+        .then(() => {
+          toast.success('Quiz created!');
+          fetchQuizzes();
+        })
+        .catch(err => {
+          toast.error(err.response?.data?.message || 'Failed to create quiz');
+        });
     }
-    setQuizToEdit(null);
   };
 
-  const handleDeleteQuiz = (id) => {
-    if (window.confirm('Are you sure you want to delete this quiz?')) {
-      setQuizzes(quizzes.filter(q => q.id !== id));
-    }
-  };
+
+  const handleDelete = (id) => {
+    if (!window.confirm('Delete this quiz?')) return;
+    deleteQuiz(id)
+      .then(() => {
+        toast.success('Quiz deleted!');
+        setQuizzes(quizzes.filter(q => q._id !== id));
+      })
+      .catch((err) => {
+        const errorMsg = err?.response?.data?.message || err?.message || 'Delete failed';
+        toast.error(errorMsg);
+        console.error('Delete Quiz Error:', err?.response || err);
+      });
+    };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading quizzes...</div>
+  }
 
   // --- VIEW FOR GUESTS (NOT LOGGED IN) ---
   if (!user) {
@@ -120,7 +183,7 @@ const QuizzesPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                 {quizzes.map((quiz, idx) => (
                   <div
-                    key={quiz.id}
+                    key={quiz._id}
                     className="relative group bg-white/80 dark:bg-dark-card/90 backdrop-blur-md rounded-3xl shadow-2xl flex flex-col border border-primary/10 dark:border-primary/20 hover:scale-[1.045] hover:shadow-[0_8px_32px_0_rgba(0,123,255,0.18)] hover:border-primary/40 dark:hover:border-primary/40 transition-all duration-200 overflow-hidden cursor-pointer"
                     style={{ boxShadow: '0 2px 16px 0 rgba(80,120,255,0.10)' }}
                   >
@@ -135,17 +198,17 @@ const QuizzesPage = () => {
                       <h3 className="text-xl font-bold mt-1 dark:text-slate-200 flex items-center gap-2"><FaBook className="text-lg text-primary/60 dark:text-primary-light/70" /> {quiz.title}</h3>
                     </div>
                     <div className="px-6 py-4 bg-primary-light/40 dark:bg-slate-800/30 border-t flex items-center gap-4 text-slate-600 dark:text-slate-300">
-                      <span className="flex items-center gap-1.5"><FaQuestionCircle/> {quiz.questions} Questions</span>
-                      <span className="flex items-center gap-1.5"><FaStar/> {quiz.points} Points</span>
+                      <span className="flex items-center gap-1.5"><FaQuestionCircle /> {quiz.questions} Questions</span>
+                      <span className="flex items-center gap-1.5"><FaStar /> {quiz.points} Points</span>
                     </div>
                     <div className="p-4">
                       {user.role === 'teacher' ? (
                         <div className="flex gap-2">
-                          <button onClick={() => setQuizToEdit(quiz)} className="w-full bg-primary/10 text-primary font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-primary/30 hover:text-primary-focus transition-all duration-150 shadow-sm"><FaEdit/> Edit</button>
-                          <button onClick={() => handleDeleteQuiz(quiz.id)} className="w-full bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-500/30 hover:text-red-600 transition-all duration-150 shadow-sm"><FaTrash/> Delete</button>
+                          <button onClick={() => setQuizToEdit(quiz)} className="w-full bg-primary/10 text-primary font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-primary/30 hover:text-primary-focus transition-all duration-150 shadow-sm"><FaEdit /> Edit</button>
+                          <button onClick={() => handleDelete(quiz.id)} className="w-full bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-500/30 hover:text-red-600 transition-all duration-150 shadow-sm"><FaTrash /> Delete</button>
                         </div>
                       ) : (
-                        <button className="w-full bg-gradient-to-r from-primary via-blue-400 to-green-400 text-white font-bold py-2 rounded-lg hover:from-primary-focus hover:to-green-500 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-150 scale-100 group-hover:scale-105"><FaBook/> Start Quiz</button>
+                        <Link to='/test-instructions' className="w-full bg-gradient-to-r from-primary via-blue-400 to-green-400 text-white font-bold py-2 rounded-lg hover:from-primary-focus hover:to-green-500 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-150 scale-100 group-hover:scale-105"><FaBook /> Start Quiz</Link>
                       )}
                     </div>
                   </div>

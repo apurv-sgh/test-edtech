@@ -39,7 +39,7 @@ const Header = () => {
                 to={user.role === 'teacher' ? '/teacher-dashboard' : '/profile'} 
                 className="font-semibold text-slate-700 dark:text-slate-200 hidden sm:inline hover:text-primary dark:hover:text-primary"
               >
-                {user.name ||user.user.name|| 'Profile'}
+                {user?.name ||user?.user?.name|| 'Profile'}
               </NavLink>
 
               <button onClick={handleLogout} className="bg-primary text-white px-5 py-2 rounded-lg font-semibold hover:bg-primary-focus transition-colors">

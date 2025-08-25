@@ -1,8 +1,10 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { FiPlus, FiEdit, FiTrash, FiX, FiUsers, FiMessageSquare } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getMyCommunity, createCommunity, updateCommunity, deleteCommunity } from '../api/communityApi';
+import { toast } from 'react-toastify';
 
 // --- Reusable Modal Component for the Form ---
 const ChannelModal = ({ isOpen, onClose, onSave, channelToEdit }) => {
@@ -13,20 +15,22 @@ const ChannelModal = ({ isOpen, onClose, onSave, channelToEdit }) => {
 
   useEffect(() => {
     if (channelToEdit) {
-      setFormData(channelToEdit);
-      setLogoPreview(channelToEdit.logo || null);
+      setFormData({
+        name: channelToEdit.name || '',
+        category: channelToEdit.category || 'JEE',
+        team: channelToEdit.team || 'Science Team',
+        bio: channelToEdit.bio || '',
+      });
       setLogoFile(null);
     } else {
       setFormData({ name: '', category: 'JEE', team: 'Science Team', teacher: user?.name || '', bio: '' });
-      setLogoPreview(null);
       setLogoFile(null);
     }
-  }, [channelToEdit, isOpen]);
+  }, [channelToEdit, isOpen, user]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Pass logoFile and logoPreview in formData
-    onSave({ ...formData, logo: logoPreview, logoFile });
+    onSave(formData, logoFile);
     onClose();
   };
 
@@ -35,7 +39,7 @@ const ChannelModal = ({ isOpen, onClose, onSave, channelToEdit }) => {
     if (file) {
       setLogoFile(file);
       const reader = new FileReader();
-      reader.onload = ev => setLogoPreview(ev.target.result);
+      reader.onloadend = () => setLogoPreview(reader.result);
       reader.readAsDataURL(file);
     }
   };
@@ -74,24 +78,72 @@ const ChannelModal = ({ isOpen, onClose, onSave, channelToEdit }) => {
 const ChannelManagementPage = () => {
   const { user } = useContext(AuthContext);
   const [channels, setChannels] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState(null);
   const navigate = useNavigate();
 
-  const handleSaveChannel = (channelData) => {
-    if (editingChannel) {
-      setChannels(channels.map(c => c.id === editingChannel.id ? { ...c, ...channelData } : c));
-      alert('Community updated successfully!');
-    } else {
-      setChannels([...channels, { ...channelData, id: Date.now() }]);
-      alert('Community created successfully!');
+  const fetchChannels = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getMyCommunity();
+      console.log("Response from getMyCommunity:", data);
+      // console.error(data);
+      // Correctly access the nested 'data' property from the Axios response
+      setChannels(data.data.channels || []);
+    } catch (error) {
+      toast.error("Could not fetch your communities.");
+      console.error(error);
+      setChannels([]);
+    } finally {
+      setLoading(false);
     }
-    setEditingChannel(null);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchChannels();
+    }
+  }, [user, fetchChannels]);
+
+  const handleSaveChannel = async (formData, logoFile) => {
+    try {
+      const data = new FormData();
+      // Append all text fields from the form data
+      Object.keys(formData).forEach(key => data.append(key, formData[key]));
+      // If a new logo file was selected, append it
+      if (logoFile) {
+        data.append('logo', logoFile);
+      }
+
+      if (editingChannel) {
+        await updateCommunity(editingChannel._id, data);
+        toast.success('Community updated successfully!');
+      } else {
+        await createCommunity(data);
+        toast.success('Community created successfully!');
+      }
+
+      // THIS IS THE CRUCIAL LINE THAT FIXES THE BUG
+      // After saving, we ask the backend for the new, complete list of channels.
+      fetchChannels();
+
+      setEditingChannel(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to save community.');
+      console.error("Save Channel Error:", error.response || error);
+    }
   };
 
-  const handleDeleteChannel = (id) => {
-    if (window.confirm('Are you sure you want to delete this channel?')) {
-      setChannels(channels.filter(c => c.id !== id));
+  const handleDeleteChannel = async (id) => {
+    if (window.confirm('Are you sure you want to delete this community?')) {
+      try {
+        await deleteCommunity(id);
+        toast.success('Community deleted successfully.');
+        fetchChannels();
+      } catch (error) {
+        toast.error('Failed to delete community.');
+      }
     }
   };
 
@@ -105,10 +157,10 @@ const ChannelManagementPage = () => {
     setIsModalOpen(true);
   };
 
-  const handleCardClick = (channelId) => {
-    // Navigate to the dedicated chat/management page for this channel
-    navigate(`/teacher-dashboard/channel/${channelId}`);
-  };
+  // const handleCardClick = (communityId) => {
+  //   // Navigate to the dedicated chat/management page for this channel
+  //   navigate(`/teacher-dashboard/channel/${communityId}`);
+  // };
 
   if (user?.role !== 'teacher') {
     return (
@@ -118,6 +170,10 @@ const ChannelManagementPage = () => {
         <Link to="/" className="text-primary mt-4 inline-block font-semibold">← Go Back Home</Link>
       </div>
     );
+  }
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading your communities...</div>;
   }
 
   return (
@@ -144,8 +200,8 @@ const ChannelManagementPage = () => {
           <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>
               {channels.map(channel => (
-                <motion.div key={channel.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-white dark:bg-dark-card rounded-xl shadow-md flex flex-col">
-                  <div onClick={() => handleCardClick(channel.id)} className="p-6 flex-grow cursor-pointer">
+                <motion.div key={channel._id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-white dark:bg-dark-card rounded-xl shadow-md flex flex-col">
+                  <div onClick={() => navigate(`/teacher-dashboard/channel/${channel._id}`)} className="p-6 flex-grow cursor-pointer">
                     <span className="text-xs bg-primary/10 text-primary dark:text-sky-400 font-semibold px-2 py-1 rounded-full">{channel.category}</span>
                     <div className="flex items-center justify-between mt-3">
                       <h3 className="text-xl font-bold">{channel.name}</h3>
@@ -163,7 +219,7 @@ const ChannelManagementPage = () => {
                   </div>
                   <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex gap-2">
                     <button onClick={() => openEditModal(channel)} className="w-full bg-primary/10 text-primary font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-primary/20"><FiEdit /> Edit</button>
-                    <button onClick={() => handleDeleteChannel(channel.id)} className="w-full bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-500/20"><FiTrash /> Delete</button>
+                    <button onClick={() => handleDeleteChannel(channel._id)} className="w-full bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-500/20"><FiTrash /> Delete</button>
                   </div>
                 </motion.div>
               ))}

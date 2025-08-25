@@ -3,6 +3,7 @@ import { FiUsers, FiBook, FiVideo, FiDollarSign, FiFileText, FiSearch, FiClock, 
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import Navbar from '../components/Navbar';
 
 // --- DUMMY DATA for the activity page ---
 const dummyActivities = [
@@ -32,7 +33,7 @@ const ActivityCard = ({ item }) => {
     note: { icon: <FiFileText/>, color: 'text-emerald-500 bg-emerald-500/10' },
   };
   const style = typeStyles[item.type] || {};
-    return (
+  return (
     <div className="bg-white dark:bg-dark-card p-4 rounded-xl shadow-md flex items-center gap-4">
       <div className={`p-3 rounded-lg ${style.color}`}>
         {style.icon}

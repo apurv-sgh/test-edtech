@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar'; 
 import { FiSearch, FiBell } from 'react-icons/fi';
 import { AuthContext } from '../../context/AuthContext';
+import Navbar from '../Navbar';
 
 const DashboardLayout = () => {
   const { user } = useContext(AuthContext);
@@ -15,11 +16,13 @@ const DashboardLayout = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-dark-bg text-slate-800 dark:text-slate-200 font-sans">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <header className="bg-white dark:bg-dark-card shadow-sm p-4 flex-shrink-0">
+    <>
+      <Navbar />
+      <div className="flex h-screen bg-slate-50 dark:bg-dark-bg text-slate-800 dark:text-slate-200 font-sans">
+        <Sidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Top Bar */}
+          <header className="bg-white dark:bg-dark-card shadow-sm p-4 flex-shrink-0">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Dashboard</h1>
             <div className="flex items-center gap-4 relative">
@@ -63,6 +66,7 @@ const DashboardLayout = () => {
         </main>
       </div>
     </div>
+    </>
   );
 };
 

@@ -2,14 +2,10 @@ import React, { useState, useContext, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { FaClipboardList, FaQuestionCircle, FaClock, FaPlay, FaEdit, FaTrash, FaPlus, FaExclamationTriangle, FaBookOpen, FaFilter } from 'react-icons/fa';
+import { getTests, createTest, updateTest, deleteTest } from '../api/tests';
+import { toast } from 'react-toastify';
 
-// --- DUMMY DATA and CATEGORIES ---
-const initialTests = [
-  { id: 1, title: 'JEE Main - Full Syllabus Mock Test 1', category: 'JEE', questions: 90, duration: '180 mins' },
-  { id: 2, title: 'NEET Biology - Mock Test 3', category: 'NEET', questions: 100, duration: '90 mins' },
-  { id: 3, title: 'UPSC Prelims - CSAT Practice 1', category: 'UPSC', questions: 80, duration: '120 mins' },
-  { id: 4, title: 'Class 12th Physics - Term 2', category: 'Class 12th', questions: 60, duration: '90 mins' },
-];
+
 const categories = ['All', 'JEE', 'NEET', 'UPSC', 'Class 12th'];
 
 // A reusable Form component for the Teacher's view
@@ -18,7 +14,15 @@ const TestSeriesForm = ({ onSave, testToEdit, onCancelEdit }) => {
 
   useEffect(() => {
     if (testToEdit) {
-      setFormData(testToEdit);
+      setFormData({
+        title: testToEdit.title ?? '',
+        category: testToEdit.category ?? categories[0],
+        questions: testToEdit.questions ?? '',
+        duration: testToEdit.duration ?? '',
+        _id: testToEdit._id ?? undefined,
+      });
+    } else {
+      setFormData({ title: '', category: categories[0], questions: '', duration: '' });
     }
   }, [testToEdit]);
 
@@ -30,8 +34,8 @@ const TestSeriesForm = ({ onSave, testToEdit, onCancelEdit }) => {
       alert('Please fill all fields.');
       return;
     }
-    onSave(formData);
-    setFormData({ title: '', category: categories[0], questions: '', duration: '' });
+  onSave(formData);
+  setFormData({ title: '', category: categories[0], questions: '', duration: '' });
   };
 
   return (
@@ -54,22 +58,72 @@ const TestSeriesForm = ({ onSave, testToEdit, onCancelEdit }) => {
 
 const TestSeriesPage = () => {
   const { user } = useContext(AuthContext);
-  const [tests, setTests] = useState(initialTests);
+  const [tests, setTests] = useState([]);
   const [testToEdit, setTestToEdit] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [loading, setLoading] = useState(true);
+  console.log("Test Series:", tests);
 
-  const handleSaveTest = (testData) => {
-    if (testData.id) {
-      setTests(tests.map(t => t.id === testData.id ? testData : t));
-    } else {
-      setTests([...tests, { ...testData, id: Date.now() }]);
+  const fetchTests = async () => {
+    setLoading(true);
+    try {
+      const res = await getTests();
+      console.log("Fetched tests:", res.data); // Debug log
+      // Map backend fields to frontend fields for rendering
+      const mappedTests = res.data.map(t => ({
+        _id: t._id,
+        title: t.title ?? '',
+        category: t.category ?? '',
+        questions: t.questions ?? '',
+        duration: t.duration ?? '',
+        description: t.description ?? '',
+        courseId: t.courseId ?? '',
+        author: t.author ?? '',
+      }));
+      setTests(mappedTests);
+    } catch (error) {
+      toast.error('Failed to fetch tests');
+      console.error('Error fetching tests:', error);
+    } finally {
+      setLoading(false);
     }
-    setTestToEdit(null);
   };
 
-  const handleDeleteTest = (id) => {
+  useEffect(() => {
+    if (user) {
+      fetchTests();
+    }
+  }, [user]);
+
+  const handleSaveTest = async (testData) => {
+    try {
+      if (testData._id) {
+        await updateTest(testData._id, testData);
+        toast.success('Test updated successfully!');
+      } else {
+        await createTest(testData);
+        toast.success('Test created successfully!');
+      }
+      setTestToEdit(null);
+      fetchTests(); // Refetch data to show changes
+    } catch (error) {
+      const errorMssg = error.response?.data?.message || 'An error occurred';
+      toast.error(errorMssg);
+      console.error('Error saving test:', error);
+    }
+  };
+
+  const handleDeleteTest = async (id) => {
     if (window.confirm('Are you sure you want to delete this test series?')) {
-      setTests(tests.filter(t => t.id !== id));
+      try {
+        await deleteTest(id);
+        toast.success('Test deleted successfully!');
+        fetchTests();
+      } catch (error) {
+        const errorMssg = error.response?.data?.message || 'An error occurred';
+        toast.error(errorMssg);
+        console.error('Error deleting test:', error);
+      }
     }
   };
 
@@ -88,6 +142,10 @@ const TestSeriesPage = () => {
         <Link to="/login" className="mt-6 bg-primary text-white font-semibold py-2 px-6 rounded-lg hover:bg-primary-focus">Go to Login</Link>
       </div>
     );
+  }
+
+  if (loading) {
+     return <div className="text-center py-20">Loading tests...</div>;
   }
 
   // --- MAIN VIEW FOR LOGGED-IN USERS (STUDENTS & TEACHERS) ---
@@ -143,7 +201,7 @@ const TestSeriesPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                 {filteredTests.map((test, idx) => (
                   <div
-                    key={test.id}
+                    key={test._id || test.id}
                     className="relative group bg-white/80 dark:bg-dark-card/90 backdrop-blur-md rounded-3xl shadow-2xl flex flex-col border border-primary/10 dark:border-primary/20 hover:scale-[1.04] hover:shadow-[0_8px_32px_0_rgba(0,123,255,0.15)] transition-all duration-200 overflow-hidden cursor-pointer"
                     style={{ boxShadow: '0 2px 16px 0 rgba(80,120,255,0.08)' }}
                   >
@@ -165,7 +223,7 @@ const TestSeriesPage = () => {
                       {user.role === 'teacher' ? (
                         <div className="flex gap-2">
                           <button onClick={() => handleEdit(test)} className="w-full bg-primary/10 text-primary font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-primary/30 hover:text-primary-focus transition-all duration-150"><FaEdit/> Edit</button>
-                          <button onClick={() => handleDeleteTest(test.id)} className="w-full bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-500/30 hover:text-red-600 transition-all duration-150"><FaTrash/> Delete</button>
+                          <button onClick={() => handleDeleteTest(test._id || test.id)} className="w-full bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-500/30 hover:text-red-600 transition-all duration-150"><FaTrash/> Delete</button>
                         </div>
                       ) : (
                         <button className="w-full bg-gradient-to-r from-primary via-blue-400 to-green-400 text-white font-bold py-2 rounded-lg hover:from-primary-focus hover:to-green-500 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-150 scale-100 group-hover:scale-105"><FaPlay/> Start Test</button>

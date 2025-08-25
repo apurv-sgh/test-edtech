@@ -29,7 +29,7 @@ const IndustryExpertDashboard = () => {
     const fetchProfile = async () => {
       setLoading(true);
       try {
-        const res = await axios.get('/api/industry-experts/me', {
+        const res = await axios.get('http://localhost:5000/api/industry-experts/me', {
           headers: { Authorization: `Bearer ${user?.token}` },
         });
         setProfile(res.data);
@@ -77,7 +77,7 @@ const IndustryExpertDashboard = () => {
       if (profilePicture) {
         formData.append('profilePicture', profilePicture);
       }
-      const res = await axios.post('/api/industry-experts/profile', formData, {
+      const res = await axios.post('http://localhost:5000/api/industry-experts/profile', formData, {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
       // Update local state immediately without page reload
@@ -101,7 +101,7 @@ const IndustryExpertDashboard = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post('/api/industry-experts/seminars', newSeminar, {
+      const res = await axios.post('http://localhost:5000/api/industry-experts/seminars', newSeminar, {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
       // Update local state immediately without page reload

@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { getQuizzes, createQuiz, deleteQuiz, getQuizzesForCourse, createQuizForCourse } from '../api/quizzes';
+import React, { useEffect, useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+import { getQuizzes, createQuiz, deleteQuiz, getQuizzesForCourse, createQuizForCourse, updateQuizDetails } from '../api/quizzes';
 import { getCourses } from '../api/courses';
 import { toast } from 'react-toastify';
 
 const Quizzes = () => {
+    const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
     const [quizzes, setQuizzes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -11,6 +15,7 @@ const Quizzes = () => {
     const [submitting, setSubmitting] = useState(false);
     const [courses, setCourses] = useState([]);
     const [selectedCourse, setSelectedCourse] = useState('');
+    const [editQuizId, setEditQuizId] = useState(null);
 
     const fetchQuizzes = () => {
         setLoading(true);
@@ -44,17 +49,40 @@ const Quizzes = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
         setSubmitting(true);
-        const create = selectedCourse ? createQuizForCourse(selectedCourse, form) : createQuiz(form);
-        create
-            .then(() => {
-                toast.success('Quiz created!');
-                setForm({ title: '', description: '', author: '' });
-                fetchQuizzes();
-            })
-            .catch(err => {
-                toast.error(err.response?.data?.message || 'Failed to create quiz');
-            })
-            .finally(() => setSubmitting(false));
+        if (editQuizId) {
+            updateQuizDetails(editQuizId, form)
+                .then(() => {
+                    toast.success('Quiz updated!');
+                    setForm({ title: '', description: '', author: '' });
+                    setEditQuizId(null);
+                    fetchQuizzes();
+                })
+                .catch(err => {
+                    toast.error(err.response?.data?.message || 'Failed to update quiz');
+                })
+                .finally(() => setSubmitting(false));
+        } else {
+            const create = selectedCourse ? createQuizForCourse(selectedCourse, form) : createQuiz(form);
+            create
+                .then(() => {
+                    toast.success('Quiz created!');
+                    setForm({ title: '', description: '', author: '' });
+                    fetchQuizzes();
+                })
+                .catch(err => {
+                    toast.error(err.response?.data?.message || 'Failed to create quiz');
+                })
+                .finally(() => setSubmitting(false));
+        }
+    };
+
+    const handleEdit = (quiz) => {
+        setEditQuizId(quiz._id);
+        setForm({
+            title: quiz.title ?? '',
+            description: quiz.description ?? '',
+            author: quiz.author ?? '',
+        });
     };
 
     const handleDelete = (id) => {
@@ -85,25 +113,44 @@ const Quizzes = () => {
                         <option value="">Select Course (optional)</option>
                         {courses.map(c => <option key={c._id} value={c._id}>{c.title}</option>)}
                     </select>
-                    <input name="title" value={form.title} onChange={handleChange} placeholder="Title" required className="border p-2 rounded flex-1" />
-                    <input name="author" value={form.author} onChange={handleChange} placeholder="Author" required className="border p-2 rounded flex-1" />
-                    <input name="description" value={form.description} onChange={handleChange} placeholder="Description" required className="border p-2 rounded flex-1" />
-                    <button type="submit" disabled={submitting} className="bg-primary text-white px-4 py-2 rounded">{submitting ? 'Adding...' : 'Add Quiz'}</button>
+                    <input name="title" value={form.title ?? ''} onChange={handleChange} placeholder="Title" required className="border p-2 rounded flex-1" />
+                    <input name="author" value={form.author ?? ''} onChange={handleChange} placeholder="Author" required className="border p-2 rounded flex-1" />
+                    <input name="description" value={form.description ?? ''} onChange={handleChange} placeholder="Description" required className="border p-2 rounded flex-1" />
+                    <button type="submit" disabled={submitting} className="bg-primary text-white px-4 py-2 rounded">
+                        {submitting ? (editQuizId ? 'Updating...' : 'Adding...') : (editQuizId ? 'Update Quiz' : 'Add Quiz')}
+                    </button>
                 </form>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {quizzes.map((quiz) => (
-                        <div key={quiz._id} className="relative group bg-white p-6 rounded-xl shadow-md">
+                        <div
+                            key={quiz._id}
+                            className={`relative group bg-white p-6 rounded-xl shadow-md ${user?.role === 'teacher' ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
+                            onClick={() => {
+                                if (user?.role === 'teacher') {
+                                    navigate('/assessment-form');
+                                }
+                            }}
+                        >
                             <h3 className="text-xl font-bold mb-2">{quiz.title}</h3>
                             <p className="text-gray-600 mb-4">{quiz.description}</p>
                             <div className="flex justify-between items-center">
                                 <span className="text-sm font-medium text-gray-700">{quiz.author}</span>
-                                <button
-                                    onClick={() => handleDelete(quiz._id)}
-                                    className="bg-red-500 text-white rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition"
-                                    title="Delete"
-                                >
-                                    Delete
-                                </button>
+                                <div>
+                                    <button
+                                        onClick={e => { e.stopPropagation(); handleEdit(quiz); }}
+                                        className="bg-blue-500 text-white rounded px-2 py-1 mr-2 opacity-0 group-hover:opacity-100 transition"
+                                        title="Edit"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={e => { e.stopPropagation(); handleDelete(quiz._id); }}
+                                        className="bg-red-500 text-white rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition"
+                                        title="Delete"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -113,4 +160,4 @@ const Quizzes = () => {
     );
 };
 
-export default Quizzes; 
+export default Quizzes;
