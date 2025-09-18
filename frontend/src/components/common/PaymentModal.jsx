@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { FaCreditCard, FaPaypal, FaLock, FaCheckCircle, FaTimes, FaCalendarAlt, FaClock, FaUser, FaVideo, FaComments, FaMobile } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import BookingNotification from './BookingNotification';
-import { initializePayment, processPayment, pollPaymentStatus } from '../../api/payments';
+import { initializePayment, processPayment, pollPaymentStatus, createCashfreeOrder } from '../../api/payments';
+import { registerForWebinar } from '../../api/webinars';
 
 const PaymentModal = ({ isOpen, onClose, service, type = 'counsellor' }) => {
   const [paymentMethod, setPaymentMethod] = useState('card');
@@ -28,22 +29,101 @@ const PaymentModal = ({ isOpen, onClose, service, type = 'counsellor' }) => {
     });
   };
 
+  const loadCashfreeScript = () => new Promise((resolve, reject) => {
+    const existing = document.getElementById('cashfree-sdk');
+    if (existing) return resolve();
+    const s = document.createElement('script');
+    s.id = 'cashfree-sdk';
+    s.src = 'https://sdk.cashfree.com/js/ui/2.0.0/cashfree.prod.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.body.appendChild(s);
+  });
+
+  const openCashfreeCheckout = async (order) => {
+    await loadCashfreeScript();
+    if (!window.Cashfree) throw new Error('Cashfree SDK failed to load');
+    const cf = new window.Cashfree({ mode: 'production' });
+    return new Promise((resolve, reject) => {
+      cf.checkout({ paymentSessionId: order?.payment_session_id, orderId: order?.order_id })
+        .then(resolve)
+        .catch(reject);
+    });
+  };
+
   const handlePayment = async (e) => {
     e.preventDefault();
     setIsProcessing(true);
 
     try {
-      // Initialize payment
+      if (type === 'expert') {
+        if (!service?._id && !service?.id) {
+          throw new Error('Webinar ID missing');
+        }
+        
+        // Check if seminar is free (fee = 0)
+        const seminarFee = service?.fee ?? 0;
+        if (seminarFee === 0) {
+          // Free seminar - direct registration
+          const webinarId = service._id || service.id;
+          const expertId = service.expertId;
+          await registerForWebinar(webinarId, expertId, { source: 'profile' });
+          setIsProcessing(false);
+          setIsSuccess(true);
+          toast.success('Registered for free webinar successfully!');
+          setTimeout(() => {
+            onClose();
+            setIsSuccess(false);
+            setFormData({
+              cardNumber: '',
+              expiryDate: '',
+              cvv: '',
+              name: '',
+              email: '',
+              upiId: ''
+            });
+          }, 1500);
+          return;
+        }
+        // Paid seminar - continue to payment flow below
+      }
+
+      if (paymentMethod === 'cashfree') {
+        const order = await createCashfreeOrder(
+          service.bookingId,
+          type === 'counsellor' ? (service?.price || 99) : (service?.fee ?? 0)
+        );
+        await openCashfreeCheckout(order);
+        
+        // For paid seminars, register the user after successful payment
+        if (type === 'expert') {
+          const webinarId = service._id || service.id;
+          const expertId = service.expertId;
+          await registerForWebinar(webinarId, expertId, { source: 'payment' });
+        }
+        
+        setIsProcessing(false);
+        setIsSuccess(true);
+        toast.success('Payment initiated via Cashfree!');
+        setTimeout(() => {
+          onClose();
+          setIsSuccess(false);
+          setCreatedBooking(null);
+          window.location.reload();
+        }, 1500);
+        return;
+      }
+
+      // Counsellor booking payment flow (demo)
       const paymentInitResponse = await initializePayment(
-        service.bookingId, // This should be passed from the booking creation
+        service.bookingId,
         paymentMethod,
-        type === 'counsellor' ? (service?.price || 99) : (service?.fee || 49)
+        type === 'counsellor' ? (service?.price || 99) : (service?.fee ?? 0)
       );
 
-      // Process payment with form data
       const paymentDetails = paymentMethod === 'card' ? {
         cardNumber: formData.cardNumber,
-        cardBrand: 'Visa', // You can detect this from card number
+        cardBrand: 'Visa',
         expiryDate: formData.expiryDate,
         cvv: formData.cvv,
         cardholderName: formData.name,
@@ -53,7 +133,6 @@ const PaymentModal = ({ isOpen, onClose, service, type = 'counsellor' }) => {
         cardholderName: formData.name,
         email: formData.email
       } : {
-        // PayPal
         email: formData.email
       };
 
@@ -62,66 +141,27 @@ const PaymentModal = ({ isOpen, onClose, service, type = 'counsellor' }) => {
         paymentDetails
       );
 
-      // Poll for payment status
-      const paymentResult = await pollPaymentStatus(processResponse.data.paymentId);
+      let paymentResult = { status: processResponse?.data?.status, transactionId: processResponse?.data?.transactionId };
+      if (paymentResult.status !== 'completed') {
+        paymentResult = await pollPaymentStatus(processResponse.data.paymentId);
+      }
 
       if (paymentResult.status === 'completed') {
+        // For paid seminars, register the user after successful payment
+        if (type === 'expert') {
+          const webinarId = service._id || service.id;
+          const expertId = service.expertId;
+          await registerForWebinar(webinarId, expertId, { source: 'payment' });
+        }
+        
         setIsProcessing(false);
         setIsSuccess(true);
-        
-        // Create booking object for notification
-        const booking = {
-          id: Date.now(),
-          type: type,
-          title: type === 'counsellor' ? (service?.title || 'Career Counselling Session') : (service?.title || 'Industry Expert Webinar'),
-          provider: type === 'counsellor' ? (service?.counsellorName || 'Career Counsellor') : (service?.expertName || 'Industry Expert'),
-          date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-          time: '14:00',
-          duration: type === 'counsellor' ? (service?.duration || '60 minutes') : (service?.duration || '90 minutes'),
-          status: 'upcoming',
-          price: type === 'counsellor' ? (service?.price || 99) : (service?.fee || 49),
-          bookingId: paymentResult.transactionId,
-          meetingLink: type === 'counsellor' 
-            ? 'https://meet.google.com/abc-defg-hij' 
-            : 'https://zoom.us/j/123456789',
-          notes: type === 'counsellor' 
-            ? 'Please prepare your resume and career questions'
-            : 'Webinar link will be sent 15 minutes before start',
-          createdAt: new Date().toISOString()
-        };
-
-        // Get existing bookings from localStorage
-        const existingBookings = JSON.parse(localStorage.getItem('userBookings') || '[]');
-        existingBookings.push(booking);
-        localStorage.setItem('userBookings', JSON.stringify(existingBookings));
-        
-        // Set created booking for notification
-        setCreatedBooking(booking);
-        
-        // Show success toast
         toast.success(`${type === 'counsellor' ? 'Session' : 'Webinar'} booked successfully!`);
-        
-        // Show notification
-        setShowNotification(true);
-        
-        // Close modal after 2 seconds
         setTimeout(() => {
           onClose();
           setIsSuccess(false);
-          setFormData({
-            cardNumber: '',
-            expiryDate: '',
-            cvv: '',
-            name: '',
-            email: '',
-            upiId: ''
-          });
           setCreatedBooking(null);
-          
-          // Refresh the page or trigger a callback to update the UI
-          if (type === 'counsellor') {
-            window.location.reload(); // Simple refresh for now
-          }
+          window.location.reload();
         }, 2000);
       } else {
         throw new Error('Payment failed');
@@ -172,6 +212,9 @@ const PaymentModal = ({ isOpen, onClose, service, type = 'counsellor' }) => {
   };
 
   const serviceDetails = getServiceDetails();
+  
+  // Check if this is a free seminar
+  const isFreeSeminar = type === 'expert' && (service?.fee ?? 0) === 0;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
@@ -179,7 +222,7 @@ const PaymentModal = ({ isOpen, onClose, service, type = 'counsellor' }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-3 sm:p-4 lg:p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white">
-            {isSuccess ? 'Payment Successful!' : 'Complete Your Booking'}
+            {isSuccess ? 'Registration Successful!' : (isFreeSeminar ? 'Register for Free Webinar' : 'Complete Your Booking')}
           </h2>
           <button
             onClick={onClose}
@@ -243,249 +286,111 @@ const PaymentModal = ({ isOpen, onClose, service, type = 'counsellor' }) => {
                      <div className="flex justify-between items-center">
                        <span className="text-gray-600 dark:text-gray-400">Total Amount:</span>
                        <span className="text-xl font-bold text-primary">
-                         {formatPrice(type === 'counsellor' ? (service?.price || 99) : (service?.fee || 49))}
+                         {isFreeSeminar ? 'Free' : formatPrice(type === 'counsellor' ? (service?.price || 99) : (service?.fee ?? 0))}
                        </span>
                      </div>
                    </div>
                 </div>
               </div>
 
-              {/* Payment Form */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-                  Payment Information
-                </h3>
-
-                {/* Payment Method Selection */}
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Payment Method
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('card')}
-                      className={`p-3 border rounded-lg flex items-center gap-2 transition-colors ${
-                        paymentMethod === 'card'
-                          ? 'border-primary bg-primary/5 text-primary'
-                          : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'
-                      }`}
-                    >
-                      <FaCreditCard className="w-4 h-4" />
-                      Card
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('upi')}
-                      className={`p-3 border rounded-lg flex items-center gap-2 transition-colors ${
-                        paymentMethod === 'upi'
-                          ? 'border-primary bg-primary/5 text-primary'
-                          : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'
-                      }`}
-                    >
-                      <FaMobile className="w-4 h-4" />
-                      UPI
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('paypal')}
-                      className={`p-3 border rounded-lg flex items-center gap-2 transition-colors ${
-                        paymentMethod === 'paypal'
-                          ? 'border-primary bg-primary/5 text-primary'
-                          : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'
-                      }`}
-                    >
-                      <FaPaypal className="w-4 h-4" />
-                      PayPal
-                    </button>
-                  </div>
-                </div>
-
-                {paymentMethod === 'card' ? (
-                  <form onSubmit={handlePayment} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Card Number
-                      </label>
-                      <input
-                        type="text"
-                        name="cardNumber"
-                        value={formData.cardNumber}
-                        onChange={handleInputChange}
-                        placeholder="1234 5678 9012 3456"
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        required
-                      />
+              {/* Payment Form or Free Registration */}
+              {isFreeSeminar ? (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FaCheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Expiry Date
-                        </label>
-                        <input
-                          type="text"
-                          name="expiryDate"
-                          value={formData.expiryDate}
-                          onChange={handleInputChange}
-                          placeholder="MM/YY"
-                          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          CVV
-                        </label>
-                        <input
-                          type="text"
-                          name="cvv"
-                          value={formData.cvv}
-                          onChange={handleInputChange}
-                          placeholder="123"
-                          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Cardholder Name
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        placeholder="John Doe"
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="john@example.com"
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        required
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                      Free Webinar Registration
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                      This webinar is completely free! Click below to register.
+                    </p>
+                    <button 
+                      onClick={handlePayment}
                       disabled={isProcessing}
-                      className={`w-full py-3 px-6 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 ${
-                        isProcessing
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-primary hover:bg-primary-dark text-white'
-                      }`}
+                      className={`w-full py-3 px-6 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 ${isProcessing ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}
                     >
                       {isProcessing ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Processing Payment...
-                        </>
-                                             ) : (
-                         <>
-                           <FaLock className="w-4 h-4" />
-                           Pay {formatPrice(type === 'counsellor' ? (service?.price || 99) : (service?.fee || 49))}
-                         </>
-                       )}
-                    </button>
-                  </form>
-                ) : paymentMethod === 'upi' ? (
-                  <form onSubmit={handlePayment} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        UPI ID
-                      </label>
-                      <input
-                        type="text"
-                        name="upiId"
-                        value={formData.upiId}
-                        onChange={handleInputChange}
-                        placeholder="username@upi"
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        placeholder="John Doe"
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="john@example.com"
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        required
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isProcessing}
-                      className={`w-full py-3 px-6 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 ${
-                        isProcessing
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-primary hover:bg-primary-dark text-white'
-                      }`}
-                    >
-                      {isProcessing ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Processing Payment...
+                          Registering...
                         </>
                       ) : (
                         <>
-                          <FaLock className="w-4 h-4" />
-                          Pay {formatPrice(type === 'counsellor' ? (service?.price || 99) : (service?.fee || 49))}
+                          <FaCheckCircle className="w-4 h-4" />
+                          Register for Free
                         </>
                       )}
                     </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Payment Method
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  <button type="button" onClick={() => setPaymentMethod('card')} className={`p-3 border rounded-lg ${paymentMethod==='card'?'border-primary bg-primary/5 text-primary':'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'}`}>Card</button>
+                  <button type="button" onClick={() => setPaymentMethod('upi')} className={`p-3 border rounded-lg ${paymentMethod==='upi'?'border-primary bg-primary/5 text-primary':'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'}`}>UPI</button>
+                  <button type="button" onClick={() => setPaymentMethod('cashfree')} className={`p-3 border rounded-lg ${paymentMethod==='cashfree'?'border-primary bg-primary/5 text-primary':'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'}`}>Cashfree</button>
+                </div>
+
+                {paymentMethod === 'card' && (
+                  <form onSubmit={handlePayment} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Card Number</label>
+                      <input type="text" name="cardNumber" value={formData.cardNumber} onChange={handleInputChange} placeholder="1234 5678 9012 3456" className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white" required />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Expiry Date</label>
+                        <input type="text" name="expiryDate" value={formData.expiryDate} onChange={handleInputChange} placeholder="MM/YY" className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">CVV</label>
+                        <input type="text" name="cvv" value={formData.cvv} onChange={handleInputChange} placeholder="123" className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white" required />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cardholder Name</label>
+                      <input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="John Doe" className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
+                      <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="john@example.com" className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white" required />
+                    </div>
+                    <button type="submit" disabled={isProcessing} className={`w-full py-3 px-6 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 ${isProcessing?'bg-gray-300 text-gray-500 cursor-not-allowed':'bg-primary hover:bg-primary-dark text-white'}`}>
+                      {isProcessing ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>Processing Payment...</>) : (<><FaLock className="w-4 h-4" />Pay {formatPrice(type === 'counsellor' ? (service?.price || 99) : (service?.fee ?? 0))}</>)}
+                    </button>
                   </form>
-                ) : (
-                  <div className="text-center py-8">
-                    <FaPaypal className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      You will be redirected to PayPal to complete your payment.
-                    </p>
-                    <button
-                      onClick={handlePayment}
-                      disabled={isProcessing}
-                      className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-                        isProcessing
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-blue-500 hover:bg-blue-600 text-white'
-                      }`}
-                    >
-                      {isProcessing ? 'Redirecting...' : 'Continue to PayPal'}
+                )}
+
+                {paymentMethod === 'upi' && (
+                  <form onSubmit={handlePayment} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">UPI ID</label>
+                      <input type="text" name="upiId" value={formData.upiId} onChange={handleInputChange} placeholder="username@upi" className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
+                      <input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="John Doe" className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
+                      <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="john@example.com" className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white" required />
+                    </div>
+                    <button type="submit" disabled={isProcessing} className={`w-full py-3 px-6 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 ${isProcessing?'bg-gray-300 text-gray-500 cursor-not-allowed':'bg-primary hover:bg-primary-dark text-white'}`}>
+                      {isProcessing ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>Processing Payment...</>) : (<><FaLock className="w-4 h-4" />Pay {formatPrice(type === 'counsellor' ? (service?.price || 99) : (service?.fee ?? 0))}</>)}
+                    </button>
+                  </form>
+                )}
+
+                {paymentMethod === 'cashfree' && (
+                  <div className="text-center py-6">
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">You will be redirected to Cashfree to complete your payment.</p>
+                    <button onClick={handlePayment} disabled={isProcessing} className={`px-6 py-3 rounded-lg font-semibold transition-colors ${isProcessing?'bg-gray-300 text-gray-500 cursor-not-allowed':'bg-primary hover:bg-primary-dark text-white'}`}>
+                      {isProcessing ? 'Redirecting…' : 'Continue to Cashfree'}
                     </button>
                   </div>
                 )}
@@ -494,7 +399,8 @@ const PaymentModal = ({ isOpen, onClose, service, type = 'counsellor' }) => {
                   <FaLock className="w-3 h-3" />
                   Your payment information is secure and encrypted
                 </div>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         )}

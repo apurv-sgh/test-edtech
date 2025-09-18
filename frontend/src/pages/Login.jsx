@@ -4,6 +4,9 @@ import { FaBookReader } from 'react-icons/fa';
 import ThemeToggle from '../components/ThemeToggle';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
+
+const API_URL = `${api.defaults.baseURL}`;
 
 const Login = () => {
   const [searchParams] = useSearchParams();
@@ -49,13 +52,13 @@ const Login = () => {
         // Check if profile exists
         try {
           const user = JSON.parse(localStorage.getItem('user'));
-          const res = await fetch('http://localhost:5000/api/industry-experts/me', {
+          const res = await fetch(`${API_URL}/api/industry-experts/me`, {
             headers: { Authorization: `Bearer ${user.token}` }
           });
           if (res.ok) {
             const data = await res.json();
             if (data && data.status) {
-              navigate('/industry-experts/dashboard');
+              navigate('/become-industry-expert');
             } else {
               navigate('/become-industry-expert');
             }
@@ -70,6 +73,17 @@ const Login = () => {
       }
     }
   };
+
+  // Helper function to get API info for display
+  const getApiInfo = (selectedRole) => {
+    if (selectedRole === 'teacher') {
+      return { name: 'Teach Backend', url: 'zegnite-teach-back-oini.onrender.com', color: 'text-blue-600' };
+    } else {
+      return { name: 'Main Backend', url: 'zegnite-backend2.onrender.com', color: 'text-green-600' };
+    }
+  };
+
+  const currentApiInfo = getApiInfo(role);
 
   return (
     <>
@@ -106,6 +120,17 @@ const Login = () => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* API Backend Info */}
+        <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="text-xs text-slate-600 dark:text-slate-400 mb-1">Using Backend:</div>
+          <div className={`text-sm font-semibold ${currentApiInfo.color}`}>
+            {currentApiInfo.name}
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-500">
+            {currentApiInfo.url}
+          </div>
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>

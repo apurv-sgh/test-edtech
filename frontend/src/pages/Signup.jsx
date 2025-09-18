@@ -4,6 +4,9 @@ import { FaBookReader } from 'react-icons/fa';
 import ThemeToggle from '../components/ThemeToggle';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
+
+const API_URL = `${api.defaults.baseURL}`;
 
 const SignUp = () => {
   const [searchParams] = useSearchParams();
@@ -37,13 +40,18 @@ const SignUp = () => {
     e.preventDefault();
     let regRole = role;
     if (role === 'counsellor_expert') regRole = subRole;
+    
+    // Debug logging
+    console.log('Signup form submitted with role:', regRole);
+    console.log('Form data:', form);
+    
     const success = await register({ ...form, role: regRole });
     if (success) {
       if (regRole === 'industry_expert') {
         // Check if profile exists
         try {
           const user = JSON.parse(localStorage.getItem('user'));
-          const res = await fetch('http://localhost:5000/api/industry-experts/me', {
+          const res = await fetch(`${API_URL}/api/industry-experts/me`, {
             headers: { Authorization: `Bearer ${user.token}` }
           });
           if (res.ok) {
@@ -60,7 +68,13 @@ const SignUp = () => {
           navigate('/become-industry-expert');
         }
       } else if (regRole === 'teacher') {
-        navigate('/teacher-dashboard');
+        try {
+          const user = JSON.parse(localStorage.getItem('user'));
+          const res = await fetch(`${API_URL}/api/teachers`);
+          navigate('/teacher-dashboard');
+        } catch (error) {
+          console.error('Error fetching teacher data:', error);
+        }
       } else if (regRole === 'student') {
         navigate('/profile');
       } else if (regRole === 'counsellor') {
@@ -70,6 +84,22 @@ const SignUp = () => {
       }
     }
   };
+
+  const handleRoleChange = (newRole) => {
+    console.log('Role changed to:', newRole);
+    setRole(newRole);
+  };
+
+  // Helper function to get API info for display
+  const getApiInfo = (selectedRole) => {
+    if (selectedRole === 'teacher') {
+      return { name: 'Teach Backend', url: 'zegnite-teach-back-oini.onrender.com', color: 'text-blue-600' };
+    } else {
+      return { name: 'Main Backend', url: 'zegnite-backend2.onrender.com', color: 'text-green-600' };
+    }
+  };
+
+  const currentApiInfo = getApiInfo(role);
 
   return (
     <>
@@ -86,9 +116,9 @@ const SignUp = () => {
         
         <div className="bg-slate-100 dark:bg-slate-700 p-1 rounded-lg flex flex-col items-center mb-6">
   <div className="w-full flex justify-around">
-    <button onClick={() => setRole('student')} className={`w-1/3 py-2 rounded-md font-semibold transition-colors text-xs sm:text-sm ${role === 'student' ? 'bg-primary text-white' : 'text-slate-500'}`}>Student</button>
-    <button onClick={() => setRole('teacher')} className={`w-1/3 py-2 rounded-md font-semibold transition-colors text-xs sm:text-sm ${role === 'teacher' ? 'bg-primary text-white' : 'text-slate-500'}`}>Teacher</button>
-    <button onClick={() => setRole('counsellor_expert')} className={`w-1/3 py-2 rounded-md font-semibold transition-colors text-xs sm:text-sm ${role === 'counsellor_expert' ? 'bg-primary text-white' : 'text-slate-500'}`}>Counsellor/Expert</button>
+    <button onClick={() => handleRoleChange('student')} className={`w-1/3 py-2 rounded-md font-semibold transition-colors text-xs sm:text-sm ${role === 'student' ? 'bg-primary text-white' : 'text-slate-500'}`}>Student</button>
+    <button onClick={() => handleRoleChange('teacher')} className={`w-1/3 py-2 rounded-md font-semibold transition-colors text-xs sm:text-sm ${role === 'teacher' ? 'bg-primary text-white' : 'text-slate-500'}`}>Teacher</button>
+    <button onClick={() => handleRoleChange('counsellor_expert')} className={`w-1/3 py-2 rounded-md font-semibold transition-colors text-xs sm:text-sm ${role === 'counsellor_expert' ? 'bg-primary text-white' : 'text-slate-500'}`}>Counsellor/Expert</button>
   </div>
   {role === 'counsellor_expert' && (
     <div className="w-3/4 flex flex-col items-center mt-4 mb-2">
@@ -107,6 +137,18 @@ const SignUp = () => {
     </div>
   )}
 </div>
+
+{/* API Backend Info */}
+<div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+  <div className="text-xs text-slate-600 dark:text-slate-400 mb-1">Using Backend:</div>
+  <div className={`text-sm font-semibold ${currentApiInfo.color}`}>
+    {currentApiInfo.name}
+  </div>
+  <div className="text-xs text-slate-500 dark:text-slate-500">
+    {currentApiInfo.url}
+  </div>
+</div>
+
         <div className={role === 'counsellor_expert' ? 'mt-10' : ''}>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>

@@ -1,5 +1,6 @@
 import axios from 'axios';
-const API_URL = 'http://localhost:4000/api/community';
+import apit from './apit';
+const API_URL = `${apit.defaults.baseURL}/api/community`;
 
 const getAuthHeaders = (isFormData = false) => {
   const token = localStorage.getItem('token');

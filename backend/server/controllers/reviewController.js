@@ -11,7 +11,12 @@ const getCounsellorReviews = async (req, res) => {
     const { counsellorId } = req.params;
     const { page = 1, limit = 10, rating, sort = 'newest' } = req.query;
 
-
+    if (!mongoose.Types.ObjectId.isValid(counsellorId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid counsellor ID format'
+      });
+    }
 
     // Validate counsellor exists
     const counsellor = await CounsellorProfile.findById(counsellorId);
@@ -484,12 +489,30 @@ const getExpertReviews = async (req, res) => {
 // Create a review for an expert
 const createExpertReview = async (req, res) => {
   try {
+   
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
+    console.log('Request user:', req.user);
+    
     const { expertId } = req.params;
     const { rating, comment, sessionType, isAnonymous } = req.body;
     const studentId = req.user._id || req.user.id;
+    
+    console.log('Extracted data:', { expertId, rating, comment, sessionType, isAnonymous, studentId });
+
+    // Validate expertId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(expertId)) {
+      console.log('Invalid expertId format:', expertId);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid expert ID format'
+      });
+    }
 
     // Validate expert exists
+    console.log('Looking for expert with ID:', expertId);
     const expert = await IndustryExpertProfile.findById(expertId);
+    console.log('Expert found:', expert ? 'Yes' : 'No');
     if (!expert) {
       return res.status(404).json({
         success: false,
@@ -497,8 +520,19 @@ const createExpertReview = async (req, res) => {
       });
     }
 
+    // Validate studentId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+      console.log('Invalid studentId format:', studentId);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid student ID format'
+      });
+    }
+
     // Check if student has already reviewed this expert
+    console.log('Checking if student has already reviewed this expert...');
     const existingReview = await ExpertReview.hasStudentReviewed(expertId, studentId);
+    console.log('Existing review found:', existingReview ? 'Yes' : 'No');
     if (existingReview) {
       return res.status(400).json({
         success: false,
@@ -545,9 +579,11 @@ const createExpertReview = async (req, res) => {
 
   } catch (error) {
     console.error('Create expert review error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Failed to submit review'
+      message: 'Failed to submit review',
+      error: error.message
     });
   }
 };

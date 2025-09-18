@@ -664,7 +664,10 @@ const IndustryExpertProfile = () => {
         }}
         service={{
           ...selectedWebinar,
-          expertName: profile.name
+          expertName: profile.name,
+          _id: selectedWebinar?._id,
+          expertId: expert?.expert?._id || expert?.expert,
+          profileId: expert?._id
         }}
         type="expert"
       />

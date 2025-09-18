@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apit from '../api/apit';
 import { FaBookReader } from 'react-icons/fa';
 import Navbar from '../components/Navbar';
 
@@ -21,26 +21,27 @@ const TeacherLogin = () => {
     setError('');
 
     const { email, password } = form;
-    const endpoint = 'http://127.0.0.1:4000/api/teachers/login';
     
     console.log("Attempting to log in as teacher...");
-    console.log("Sending to:", endpoint);
 
     try {
-      const response = await axios.post(endpoint, { email, password });
+      const response = await apit.post('/api/teachers/login', { email, password });
 
-      const { token } = response.data;
+      const { token, teacher } = response.data;
 
       if (token) {
-        const teacherUser = { 
-          email: email, 
-          role: 'teacher',
-          name: 'Teacher' 
-        };
-
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(teacherUser));
-        window.location.href = '/'; 
+        // Store teacher-specific token
+        localStorage.setItem('teacherToken', token);
+        // Store user data with teacher role
+        localStorage.setItem('user', JSON.stringify({ 
+          id: teacher.id,
+          name: teacher.name, 
+          email: teacher.email, 
+          role: 'teacher' 
+        }));
+        
+        // Navigate to teacher dashboard
+        window.location.href = '/teacher-dashboard'; 
       } else {
         // This will catch cases where the server responds with 200 OK but no token.
         throw new Error("Login response was successful but did not contain a token.");

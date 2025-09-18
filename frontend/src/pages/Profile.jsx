@@ -1,23 +1,13 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { FiBook, FiCalendar, FiFileText, FiArrowRight } from 'react-icons/fi';
+import { FiBook, FiCalendar, FiFileText, FiArrowRight, FiPlus, FiClock } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useNavigate } from "react-router-dom";
+import { useDashboard } from '../context/DashboardContext';
 
 
-// --- ENRICHED DUMMY DATA to power the new designs ---
-const recentCourses = [
-  { id: '1', title: 'Advanced Quantum Mechanics', progress: 75, thumb: 'https://placehold.co/600x400/A78BFA/ffffff?text=Physics' },
-  { id: '2', title: 'Organic Chemistry Reactions', progress: 40, thumb: 'https://placehold.co/600x400/F472B6/FFFFFF?text=Chemistry' },
-  { id: '3', title: 'Calculus for Engineers', progress: 90, thumb: 'https://placehold.co/600x400/EF4444/ffffff?text=Maths' },
-];
-
-const upcomingDeadlines = [
-  { id: '1', title: 'Quiz 3: Electromagnetism', course: 'Advanced Quantum Mechanics', dueDate: new Date('2025-07-28T23:59:00') },
-  { id: '2', title: 'Assignment 2 Submission', course: 'Calculus for Engineers', dueDate: new Date('2025-08-05T23:59:00') },
-  { id: '3', title: 'Final Project Proposal', course: 'Data Structures in C++', dueDate: new Date('2025-08-15T23:59:00') },
-];
+// Dynamic data will be fetched from context and APIs
 
 const quickActions = [
   { title: 'Browse Courses', description: 'Find your next challenge.', icon: <FiBook/>, link: '/profile/courses', color: 'text-sky-500 bg-sky-500/10' },
@@ -28,7 +18,9 @@ const quickActions = [
 
 const Profile = () => {
   const { user } = useContext(AuthContext);
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const { courses, loading, error } = useDashboard();
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
 
   // Redirect counsellors and industry experts to their dashboards
   React.useEffect(() => {
@@ -66,23 +58,59 @@ const Profile = () => {
             
             <section>
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Continue Learning</h2>
-              <div className="flex gap-6 pb-4 -mx-6 px-6 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
-                {recentCourses.map((course, index) => (
-                  <motion.div key={course.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.1 }} className="w-72 flex-shrink-0">
-                    <div className="block group bg-white dark:bg-dark-card rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col">
-                      <div className="relative aspect-video"><img src={course.thumb} alt={course.title} className="w-full h-full object-cover"/></div>
-                      <div className="p-5 flex flex-col flex-grow">
-                        <h4 className="font-bold text-slate-800 dark:text-white flex-grow">{course.title}</h4>
-                        <div className="mt-4">
-                          <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mb-1"><span>Progress</span><span>{course.progress}%</span></div>
-                          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5"><div className="bg-primary h-2.5 rounded-full" style={{ width: `${course.progress}%` }}></div></div>
+              {loading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : courses && courses.length > 0 ? (
+                <div className="flex gap-6 pb-4 -mx-6 px-6 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+                  {courses.slice(0, 3).map((course, index) => (
+                    <motion.div key={course._id || course.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.1 }} className="w-72 flex-shrink-0">
+                      <div className="block group bg-white dark:bg-dark-card rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col">
+                        <div className="relative aspect-video">
+                          <img 
+                            src={course.thumbnail || course.image || `https://placehold.co/600x400/A78BFA/ffffff?text=${course.title?.charAt(0) || 'C'}`} 
+                            alt={course.title} 
+                            className="w-full h-full object-cover"
+                          />
                         </div>
-                        <Link to="#" className="mt-5 w-full bg-primary/10 dark:bg-primary/20 text-primary font-semibold py-2 rounded-lg flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary hover:text-white">View Course <FiArrowRight/></Link>
+                        <div className="p-5 flex flex-col flex-grow">
+                          <h4 className="font-bold text-slate-800 dark:text-white flex-grow">{course.title}</h4>
+                          <div className="mt-4">
+                            <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mb-1">
+                              <span>Progress</span>
+                              <span>{course.progress || 0}%</span>
+                            </div>
+                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5">
+                              <div className="bg-primary h-2.5 rounded-full" style={{ width: `${course.progress || 0}%` }}></div>
+                            </div>
+                          </div>
+                          <Link to={`/courses/${course._id || course.id}`} className="mt-5 w-full bg-primary/10 dark:bg-primary/20 text-primary font-semibold py-2 rounded-lg flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary hover:text-white">
+                            View Course <FiArrowRight/>
+                          </Link>
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="bg-gradient-to-r from-primary/10 via-blue-100/10 to-green-100/10 dark:from-primary/20 dark:via-blue-900/10 dark:to-green-900/10 rounded-xl shadow-lg p-8 flex flex-col items-center justify-center"
+                >
+                  <FiBook className="text-6xl text-primary mb-4" />
+                  <h3 className="text-xl font-bold text-primary mb-2">No Courses Enrolled Yet</h3>
+                  <p className="text-slate-600 dark:text-slate-400 mb-6 text-center max-w-md">
+                    You haven't enrolled in any courses yet. Explore our amazing courses and start your learning journey!
+                  </p>
+                  <Link to="/courses" className="bg-primary text-white font-semibold py-3 px-6 rounded-lg hover:bg-primary-focus transition-colors flex items-center gap-2">
+                    <FiPlus className="text-lg" />
+                    Browse Courses
+                  </Link>
+                </motion.div>
+              )}
             </section>
             
             {/* --- 2. REDESIGNED "Enrolled Channel" GRID --- */}
@@ -134,22 +162,44 @@ const Profile = () => {
             <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-lg sticky top-24">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white">Upcoming Events</h2>
-                <Link to="#" className="text-sm font-semibold text-primary hover:underline">View All</Link>
+                <Link to="/profile/activity" className="text-sm font-semibold text-primary hover:underline">View All</Link>
               </div>
-              <div className="space-y-4">
-                {upcomingDeadlines.map(deadline => (
-                  <div key={deadline.id} className="flex items-center gap-4 p-4 bg-primary-light/50 dark:bg-slate-800/50 rounded-lg hover:shadow-md transition-shadow">
-                    <div className="flex flex-col items-center justify-center bg-white dark:bg-dark-card w-14 h-14 rounded-lg shadow-sm flex-shrink-0">
-                      <span className="text-xs font-bold text-primary uppercase">{deadline.dueDate.toLocaleDateString('en-US', { month: 'short' })}</span>
-                      <span className="text-2xl font-extrabold text-slate-800 dark:text-white">{deadline.dueDate.getDate()}</span>
+              {upcomingEvents && upcomingEvents.length > 0 ? (
+                <div className="space-y-4">
+                  {upcomingEvents.slice(0, 3).map(event => (
+                    <div key={event.id} className="flex items-center gap-4 p-4 bg-primary-light/50 dark:bg-slate-800/50 rounded-lg hover:shadow-md transition-shadow">
+                      <div className="flex flex-col items-center justify-center bg-white dark:bg-dark-card w-14 h-14 rounded-lg shadow-sm flex-shrink-0">
+                        <span className="text-xs font-bold text-primary uppercase">
+                          {new Date(event.date || event.dueDate).toLocaleDateString('en-US', { month: 'short' })}
+                        </span>
+                        <span className="text-2xl font-extrabold text-slate-800 dark:text-white">
+                          {new Date(event.date || event.dueDate).getDate()}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-800 dark:text-white">{event.title}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{event.course || event.type}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-slate-800 dark:text-white">{deadline.title}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{deadline.course}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="text-center py-8"
+                >
+                  <FiClock className="text-4xl text-slate-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-400 mb-2">No Upcoming Events</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-500 mb-4">
+                    You don't have any upcoming events or deadlines.
+                  </p>
+                  <Link to="/courses" className="text-primary text-sm font-semibold hover:underline">
+                    Browse Courses
+                  </Link>
+                </motion.div>
+              )}
             </div>
           </aside>
 

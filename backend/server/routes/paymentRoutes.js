@@ -4,13 +4,15 @@ const {
   initializePayment,
   processPayment,
   getPaymentStatus,
-  getPaymentHistory
+  getPaymentHistory,
+  cashfreeWebhook
 } = require('../controllers/paymentController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 // Payment routes
 router.post('/initialize', authMiddleware(), initializePayment);
 router.post('/process', authMiddleware(), processPayment);
+router.post('/cashfree/webhook', cashfreeWebhook);
 router.get('/:paymentId/status', authMiddleware(), getPaymentStatus);
 router.get('/history', authMiddleware(), getPaymentHistory);
 

@@ -6,35 +6,50 @@ const User = require('../models/Counsellor'); // User model is exported from Cou
 // Register for a webinar
 const registerForWebinar = async (req, res) => {
   try {
-    const { webinarId, expertId, name, email, phone, institution, yearOfStudy, expectations, questions } = req.body;
+    // webinarId comes from URL param (seminar subdocument id); body may also include webinarId
+    const webinarId = req.params.webinarId || req.body.webinarId;
     const studentId = req.user.id; // From auth middleware
+    const {
+      expertId: expertIdFromBody,
+      name,
+      email,
+      phone,
+      institution,
+      yearOfStudy,
+      expectations,
+      questions
+    } = req.body;
 
-    // Check if webinar exists
-    const webinar = await IndustryExpertProfile.findById(webinarId);
-    if (!webinar) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webinar not found'
-      });
+    if (!webinarId) {
+      return res.status(400).json({ success: false, message: 'webinarId is required' });
     }
 
-    // Check if already registered
-    const existingRegistration = await WebinarRegistration.findOne({
-      webinarId,
-      studentId
-    });
+    // Find expert profile containing this webinar (seminar subdocument)
+    let expertProfile = await IndustryExpertProfile.findOne({ 'seminars._id': webinarId }).populate('expert', 'name email');
+    // Fallback 1: treat webinarId as profile id (demo support) if not found as subdocument
+    if (!expertProfile) {
+      expertProfile = await IndustryExpertProfile.findById(webinarId).populate('expert', 'name email');
+    }
+    // Fallback 2: if still not found, but expertId provided, use expert's profile
+    if (!expertProfile && expertIdFromBody) {
+      expertProfile = await IndustryExpertProfile.findOne({ expert: expertIdFromBody }).populate('expert', 'name email');
+    }
+    if (!expertProfile) {
+      return res.status(404).json({ success: false, message: 'Webinar not found' });
+    }
 
+    const effectiveExpertId = expertIdFromBody || expertProfile.expert?._id || expertProfile.expert;
+
+    // Prevent duplicate registration
+    const existingRegistration = await WebinarRegistration.findOne({ webinarId, studentId });
     if (existingRegistration) {
-      return res.status(400).json({
-        success: false,
-        message: 'You are already registered for this webinar'
-      });
+      return res.status(400).json({ success: false, message: 'You are already registered for this webinar' });
     }
 
     // Create registration
     const registration = new WebinarRegistration({
       webinarId,
-      expertId,
+      expertId: effectiveExpertId,
       studentId,
       name,
       email,
@@ -48,18 +63,11 @@ const registerForWebinar = async (req, res) => {
 
     await registration.save();
 
-    res.status(201).json({
-      success: true,
-      message: 'Registration successful!',
-      data: registration
-    });
+    res.status(201).json({ success: true, message: 'Registration successful!', data: registration });
 
   } catch (error) {
     console.error('Webinar registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Registration failed. Please try again.'
-    });
+    res.status(500).json({ success: false, message: 'Registration failed. Please try again.' });
   }
 };
 
@@ -241,7 +249,8 @@ const getWebinarDetails = async (req, res) => {
       });
     }
 
-    const webinar = expertProfile.seminars.find(s => s._id.toString() === webinarId);
+    // Locate seminar object if webinarId refers to subdocument
+    const webinar = (expertProfile.seminars || []).find(s => s._id?.toString() === String(webinarId));
     
     // Get registration count
     const registrationCount = await WebinarRegistration.getWebinarRegistrationCount(webinarId);

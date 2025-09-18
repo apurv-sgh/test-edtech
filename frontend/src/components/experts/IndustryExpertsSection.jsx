@@ -55,56 +55,7 @@ const IndustryExpertsSection = () => {
     ]
   };
 
-  const staticExperts = [
-    {
-      id: '1',
-      name: 'Dr. Sarah Johnson',
-      company: 'Facebook',
-      experience: 12,
-      domain: 'Web Development',
-      skills: ['JavaScript', 'React', 'Node.js'],
-      rating: 4.9,
-      courses: 8,
-      students: 1247,
-      image: '/assets/teacher-1.jpg',
-    },
-    {
-      id: '2',
-      name: 'Prof. Michael Chen',
-      company: 'Google',
-      experience: 10,
-      domain: 'Data Science',
-      skills: ['Python', 'Machine Learning', 'Data Analysis'],
-      rating: 4.8,
-      courses: 6,
-      students: 892,
-      image: '/assets/teacher-2.jpg',
-    },
-    {
-      id: '3',
-      name: 'Dr. Emily Rodriguez',
-      company: 'Google',
-      experience: 8,
-      domain: 'Business Analytics',
-      skills: ['Business Intelligence', 'Analytics', 'Excel'],
-      rating: 4.7,
-      courses: 5,
-      students: 567,
-      image: '/assets/teacher-3.jpg',
-    },
-    {
-      id: '4',
-      name: 'Mr. David Kim',
-      company: 'Google',
-      experience: 7,
-      domain: 'UI/UX Design',
-      skills: ['UI Design', 'UX Research', 'Figma'],
-      rating: 4.6,
-      courses: 4,
-      students: 423,
-      image: '/assets/teacher-4.jpg',
-    },
-  ];
+  // Removed static experts fallback to ensure data is always fetched dynamically
 
   return (
     <section className="py-0 bg-gradient-to-br from-primary-light via-purple-50 to-indigo-50 dark:from-slate-900/50 dark:via-slate-800 dark:to-slate-900">
@@ -122,15 +73,7 @@ const IndustryExpertsSection = () => {
         {loading ? (
           <div className="text-center py-12">Loading experts...</div>
         ) : (profiles.length === 0 ? (
-          <div className="max-w-6xl mx-auto">
-            <Slider {...settings}>
-              {staticExperts.map((expert, idx) => (
-                <div key={expert.id} className="px-2 py-4">
-                  <IndustryExpertCard expert={expert} />
-                </div>
-              ))}
-            </Slider>
-          </div>
+          <div className="text-center py-12 text-slate-500">No experts available at the moment.</div>
         ) : (
           <div className="max-w-6xl mx-auto">
             <Slider {...settings}>

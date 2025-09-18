@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FaPlayCircle } from 'react-icons/fa';
+import { fetchCategoryBySlug } from '../api/categories';
 
 // --- FULLY COMPLETED DUMMY DATA ---
 // All 8 slugs from the AllDomains component now have a corresponding entry here.
@@ -55,7 +56,22 @@ const pageData = {
 
 const DomainDetailsPage = () => {
   const { domainSlug } = useParams();
-  const data = pageData[domainSlug] || pageData['default'];
+  const [data, setData] = useState(pageData['default']);
+
+  useEffect(() => {
+    let isMounted = true;
+    console.log('[DomainDetailsPage] fetching category by slug:', domainSlug);
+    fetchCategoryBySlug(domainSlug)
+      .then((category) => {
+        if (!isMounted) return;
+        console.log('[DomainDetailsPage] category data:', category);
+        if (category) setData(category);
+      })
+      .catch((err) => {
+        console.error('[DomainDetailsPage] fetch error:', err);
+      });
+    return () => { isMounted = false; };
+  }, [domainSlug]);
 
   return (
     <div className="bg-white dark:bg-dark-bg min-h-screen">

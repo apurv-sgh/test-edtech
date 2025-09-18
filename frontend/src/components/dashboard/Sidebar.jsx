@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  FiGrid, FiBookOpen, FiClipboard, FiCalendar, FiUsers, FiLogOut, FiFileText, FiX, FiHash, FiActivity
+  FiGrid, FiBookOpen, FiClipboard, FiCalendar, FiUsers, FiLogOut, FiFileText, FiX, FiHash, FiActivity, FiSettings
 } from 'react-icons/fi';
 import { AuthContext } from '../../context/AuthContext';
 
@@ -12,8 +12,10 @@ const navLinks = [
   { icon: FiCalendar, name: 'Study Plan', path: '/profile/studyplan' },
   { icon: FiUsers, name: 'Discussions', path: '/profile/discussions' },
   { icon: FiHash, name: 'Communities', path: '/profile/channels' },
-  // { icon: FiActivity, name: 'Bookings', path: '/profile/bookings' },
+  { icon: FiActivity, name: 'Bookings', path: '/profile/bookings' },
   { icon: FiActivity, name: 'Your Activity', path: '/profile/your-activity' },
+  { icon: FiSettings, name: 'Settings', path: '/profile/settings' }
+
 ];
 
 const DashboardSidebar = ({ open, onClose }) => {

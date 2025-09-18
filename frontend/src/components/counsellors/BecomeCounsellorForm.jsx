@@ -4,6 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Button from '../Button';
+import api from '../../api/api';
+
+const API_URL = `${api.defaults.baseURL}`;
 
 const BecomeCounsellorForm = () => {
   const { user } = useAuth();
@@ -32,7 +35,7 @@ const BecomeCounsellorForm = () => {
     }
     const fetchProfile = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/counsellors/me', {
+        const res = await axios.get(`${API_URL}/api/counsellors/me`, {
           headers: { Authorization: `Bearer ${user.token}` },
         });
         if (res.data && res.data.status) {
@@ -67,7 +70,7 @@ const BecomeCounsellorForm = () => {
       documents.forEach(doc => {
         formData.append('documents', doc);
       });
-      await axios.post('http://localhost:5000/api/counsellors/profile', formData, {
+      await axios.post(`${API_URL}/api/counsellors/profile`, formData, {
         headers: {
           Authorization: `Bearer ${user.token}`,
           'Content-Type': 'multipart/form-data'
@@ -148,7 +151,7 @@ const BecomeCounsellorForm = () => {
             </div>
           </div>
           <button
-            onClick={() => window.history.back()}
+            onClick={() =>  navigate("/counsellor/dashboard")}
             className="w-full bg-primary hover:bg-primary-dark text-white py-3 rounded-xl font-semibold transition-colors"
           >
             Back to Counsellors

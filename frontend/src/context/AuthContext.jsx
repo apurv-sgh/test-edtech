@@ -21,24 +21,39 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       let res;
-      // Use different endpoints based on role
-      if (credentials.role === 'student' ) {
+      console.log('Login attempt for role:', credentials.role);
+      
+      // Route to appropriate API based on role
+      if (credentials.role === 'student') {
+        console.log('Using main backend for student login');
         res = await loginStudent(credentials);
-      }else if (credentials.role === 'teacher') {
+      } else if (credentials.role === 'teacher') {
+        console.log('Using Teach_Backend for teacher login');
         res = await loginTeacher(credentials);
         // Ensure role is set to teacher in user object
         if (res.data) res.data.role = 'teacher';
       } else {
+        // counsellor, industry_expert, etc.
+        console.log('Using main backend for counsellor/expert login');
         res = await apiLogin(credentials);
       }
       
+      console.log('Login successful for role:', credentials.role);
       setUser(res.data);
+      
+      // Store appropriate token based on role
       if (credentials.role === 'teacher' && res.data.token) {
         localStorage.setItem('teacherToken', res.data.token);
+        console.log('Teacher token stored');
+      } else if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        console.log('User token stored');
       }
-      toast.success('Logged in!');
+      
+      toast.success('Logged in successfully!');
       return true;
     } catch (err) {
+      console.error('Login error for role:', credentials.role, err);
       let msg = 'Login failed';
       if (err.response) {
         if (err.response.data?.message) msg = err.response.data.message;
@@ -48,7 +63,6 @@ export const AuthProvider = ({ children }) => {
         msg = err.message;
       }
       toast.error(msg);
-      console.error('Login error:', err);
       return false;
     } finally {
       setLoading(false);
@@ -59,25 +73,54 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       let res;
-      // Use different endpoints based on role
+      console.log('Registration attempt for role:', data.role);
+      
+      // Route to appropriate API based on role
       if (data.role === 'student') {
+        console.log('Using main backend for student registration');
         res = await registerStudent(data);
       } else if (data.role === 'teacher') {
+        console.log('Using Teach_Backend for teacher registration');
         res = await registerTeacher(data);
         // Ensure role is set to teacher in user object
         if (res.data) res.data.role = 'teacher';
       } else {
+        // counsellor, industry_expert, etc.
+        console.log('Using main backend for counsellor/expert registration');
         res = await apiRegister(data);
       }
       
+      console.log('Registration successful for role:', data.role);
       setUser(res.data);
+
+      const normalizeUser = (data) => {
+        if (!data) return null;
+        return {
+          ...data,
+          id: data._id || data.id || data.userId || data.uid,
+        };
+      };
+
+      setUser(normalizeUser(res.data));
+      
+      
+      // Store appropriate token based on role
       if (data.role === 'teacher' && res.data.token) {
         localStorage.setItem('teacherToken', res.data.token);
+        console.log('Teacher token stored');
+      } else if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        console.log('User token stored');
       }
-      toast.success('Registered!');
+      
+      toast.success('Registration successful!');
       return true;
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
+      console.error('Registration error for role:', data.role, err);
+      let msg = 'Registration failed';
+      if (err.response?.data?.message) msg = err.response.data.message;
+      else if (err.message) msg = err.message;
+      toast.error(msg);
       return false;
     } finally {
       setLoading(false);
@@ -87,7 +130,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('teacherToken');
-    toast.info('Logged out');
+    localStorage.removeItem('token');
+    toast.info('Logged out successfully');
     Navigate('/');
   };
 
@@ -104,7 +148,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, fetchProfile }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout, fetchProfile }}>
       {children}
     </AuthContext.Provider>
   );

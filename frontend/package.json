@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:prod": "vite --mode production",
     "build": "vite build",
+    "build:prod": "vite build --mode production",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@heroicons/react": "^1.0.6",
     "@tailwindcss/typography": "^0.5.16",
     "axios": "^1.10.0",
     "cors": "^2.8.5",

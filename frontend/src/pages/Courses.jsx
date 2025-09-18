@@ -49,7 +49,7 @@ const Courses = () => {
     .sort((a, b) => {
       switch (sortBy) {
         case 'rating':
-          return (b.rating || 0) - (a.rating || 0);
+          return (b.rating?.average || 0) - (a.rating?.average || 0);
         case 'students':
           return (b.studentsEnrolled?.length || 0) - (a.studentsEnrolled?.length || 0);
         case 'newest':
@@ -189,7 +189,7 @@ const Courses = () => {
                     </div>
                     <div className="absolute top-4 left-4 bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
                       <FaStar size={12} />
-                      {course.rating?.toFixed(1) || '4.5'}
+                      {course.rating?.average?.toFixed(1) || '0.0'}
                     </div>
                   </div>
 

@@ -32,6 +32,12 @@ const SettingsPage = () => {
   });
   // Profile picture preview state
   const [profilePicPreview, setProfilePicPreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // Backend URL configuration
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const backendUrl = isLocalhost ? 'http://localhost:5000' : 'https://zegnite-backend2.onrender.com';
 
   // Protected View for teachers only
   if (user?.role !== 'teacher') {
@@ -44,35 +50,65 @@ const SettingsPage = () => {
     );
   }
 
-  const handleProfilePicChange = async (e) => {
+  const handleProfilePicChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Preview
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+        return;
+      }
+
+      // Store the file and show preview
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onload = ev => {
         setProfilePicPreview(ev.target.result);
       };
       reader.readAsDataURL(file);
+    }
+  };
 
-      // Upload to backend
-      const formData = new FormData();
-      formData.append('avatar', file);
-      try {
-        const res = await fetch('/api/auth/upload-avatar', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          },
-          body: formData
-        });
-        const data = await res.json();
-        if (data.success && data.avatar) {
-          setUser(prev => ({ ...prev, avatar: data.avatar }));
-        }
-      } catch (err) {
-        // Optionally handle error
-        console.error('Profile picture upload failed', err);
+  const handleUpdateProfile = async () => {
+    if (!selectedFile) {
+      alert('Please select a profile picture first');
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('profilePic', selectedFile);
+    
+    try {
+      const res = await fetch(`${backendUrl}/api/auth/upload-profile-pic`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      
+      const data = await res.json();
+      if (data.success && data.avatar) {
+        setUser(prev => ({ ...prev, avatar: data.avatar, profilePicture: data.avatar }));
+        setSelectedFile(null);
+        setProfilePicPreview(null);
+        alert('Profile picture updated successfully!');
+      } else {
+        alert(data.message || 'Failed to upload profile picture');
       }
+    } catch (err) {
+      console.error('Profile picture upload failed', err);
+      alert('Failed to upload profile picture. Please try again.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -97,7 +133,7 @@ const SettingsPage = () => {
               <div className="flex items-center gap-6 p-4 bg-primary-light/50 dark:bg-slate-800/50 rounded-lg">
                 <div className="relative w-24 h-24">
                   <img
-                    src={profilePicPreview || user.avatar || `https://placehold.co/100x100/A78BFA/FFFFFF?text=${user.name.charAt(0)}`}
+                    src={profilePicPreview || (user.profilePicture ? (user.profilePicture.startsWith('http') ? user.profilePicture : `${backendUrl}${user.profilePicture}`) : null) || user.avatar || `https://placehold.co/100x100/A78BFA/FFFFFF?text=${user.name.charAt(0)}`}
                     alt="Avatar"
                     className="w-24 h-24 rounded-full object-cover"
                   />
@@ -119,7 +155,30 @@ const SettingsPage = () => {
                 <div>
                   <p className="font-bold text-lg">{user.name}</p>
                   <p className="text-slate-500">{user.email}</p>
-                  <button className="mt-2 text-sm font-semibold text-primary hover:underline">Edit Profile</button>
+                  <div className="mt-3 flex gap-2">
+                    <button 
+                      onClick={handleUpdateProfile}
+                      disabled={!selectedFile || isUploading}
+                      className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                        selectedFile && !isUploading 
+                          ? 'bg-primary text-white hover:bg-primary-focus' 
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {isUploading ? 'Uploading...' : 'Update Profile'}
+                    </button>
+                    {selectedFile && (
+                      <button 
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setProfilePicPreview(null);
+                        }}
+                        className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -53,6 +53,9 @@ const upload = multer({
 router.post('/upload', authenticateToken, upload.any(),  async (req, res) => {
   // console.log('Incoming upload request', req.body, req.files);
   try {
+    console.log('[Teach][POST /api/uploads] header:', req.header);
+    console.log('[Teach][POST /api/uploads] user from token:', req.user);
+    console.log('[Teach][POST /api/uploads] body:', req.body);
     const {
       title,
       description,
@@ -64,11 +67,27 @@ router.post('/upload', authenticateToken, upload.any(),  async (req, res) => {
       visibility
     } = req.body;
 
-    const teacherId = req.user.teacherId || req.user.userId;
-    const teacher = await Teacher.findById(teacherId);
+    // const teacherId = req.user.teacherId || req.user.userId;
+    // const teacher = await Teacher.findById(teacherId);
+
+    const teacherId = req.user.teacherId || req.user.usrId || req.user._id;
     
-    if (!teacher) {
-      return res.status(404).json({ message: 'Teacher not found' });
+    // if (!teacher) {
+    //   return res.status(404).json({ message: 'Teacher not found' });
+    // }
+
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ success: false, message: "Only teacher can upload notes" });
+    }
+
+    let instructorName = req.user.name || 'Unknown';;
+    try {
+      const prof = await Teacher.findById(teacherId);
+      if (prof) {
+        instructorName = prof.name || instructorName;;
+      }
+    } catch (e) {
+      console.warn('[Teach][POST /api/upload] Teacher lookup failed, using user data:', e && e.message);
     }
 
     // Process uploaded files
@@ -85,7 +104,7 @@ router.post('/upload', authenticateToken, upload.any(),  async (req, res) => {
       description,
       content,
       teacher: teacherId,
-      teacherName: teacher.name,
+      instructorName,
       subject,
       topic,
       course: course || null,

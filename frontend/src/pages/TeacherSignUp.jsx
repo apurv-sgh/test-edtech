@@ -1,61 +1,54 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import apit from '../api/apit';
 import Navbar from '../components/Navbar';
 import ThemeToggle from '../components/ThemeToggle';
 
 const TeacherSignUp = () => {
-  // --- STATE IS NOW LOCAL TO THIS COMPONENT ---
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  // This function updates the local state as the user types.
+  
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // --- THIS IS THE DEFINITIVE FIX ---
-  // The API call logic is now directly inside this component.
-  // It is self-contained and does not rely on any external context.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     const { name, email, password } = form;
-
-    // 1. Define the correct teacher signup endpoint.
-    const endpoint = 'http://127.0.0.1:4000/api/teachers/register';
     
-    // 2. Create the correct payload. Based on your backend error, it expects 'name'.
+    // Create the correct payload for teacher registration
     const payload = {
       name: name,
       email: email,
-      password: password,
+      password: password
+      // Additional fields like phone, specialization, etc. can be added later
     };
-    
-    console.log("Attempting to sign up as teacher...");
-    console.log("Sending to:", endpoint);
-    console.log("Payload:", payload);
 
     try {
-      // 3. Make the API call with the correct form data.
-      const response = await axios.post(endpoint, payload);
+      const response = await apit.post('/api/teachers/register', payload);
 
-      const { token } = response.data;
+      const { token, teacher } = response.data;
 
-      // 4. On success, store the credentials and navigate.
       if (token) {
-        localStorage.setItem('token', token);
-        // We add the 'role' and create a user object for the frontend.
-        localStorage.setItem('user', JSON.stringify({ name, email, role: 'teacher' }));
+        // Store teacher-specific token
+        localStorage.setItem('teacherToken', token);
+        // Store user data with teacher role
+        localStorage.setItem('user', JSON.stringify({ 
+          id: teacher.id,
+          name: teacher.name, 
+          email: teacher.email, 
+          role: 'teacher' 
+        }));
         
-        // Force a full page reload to the live classes page to update all components.
-        window.location.href = '/'; 
+        // Navigate to teacher dashboard
+        window.location.href = '/teacher-dashboard'; 
       } else {
         throw new Error("Signup response was missing a token.");
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || "Registration failed. Please try again.";
-      console.error("Signup Error:", err.response || err);
       alert(errorMessage);
     } finally {
       setLoading(false);

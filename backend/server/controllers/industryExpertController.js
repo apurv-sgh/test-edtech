@@ -37,6 +37,21 @@ exports.upsertProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const data = req.body;
+
+    // Debug log
+    console.log('[PROFILE_UPDATE] userId:', userId, 'body:', data, 'files:', req.files);
+    // Handle file uploads
+    if (req.files && req.files.profilePicture && req.files.profilePicture[0]) {
+      data.profilePicture = `/uploads/${req.files.profilePicture[0].filename}`;
+    }
+    // Parse skills/topics if sent as comma-separated strings
+    if (typeof data.skills === 'string') {
+      data.skills = data.skills.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    if (typeof data.topics === 'string') {
+      data.topics = data.topics.split(',').map(s => s.trim()).filter(Boolean);
+    }
+
     let profile = await IndustryExpertProfile.findOne({ expert: userId });
     if (profile) {
       Object.assign(profile, data);
@@ -84,6 +99,179 @@ exports.getProfileById = async (req, res) => {
     res.json(profile);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch profile', error: err.message });
+  }
+};
+
+// Create a new seminar
+exports.createSeminar = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { title, description, date, time, fee } = req.body;
+
+    // Validate required fields
+    if (!title || !date || !time) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Title, date, and time are required' 
+      });
+    }
+
+    // Find the expert's profile
+    let profile = await IndustryExpertProfile.findOne({ expert: userId });
+    if (!profile) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Expert profile not found. Please create your profile first.' 
+      });
+    }
+
+    // Create new seminar object
+    const newSeminar = {
+      title,
+      description: description || '',
+      date: new Date(date),
+      time,
+      fee: fee || 0
+    };
+
+    // Add seminar to the profile's seminars array
+    profile.seminars.push(newSeminar);
+    await profile.save();
+
+    // Get the newly created seminar (last one in the array)
+    const createdSeminar = profile.seminars[profile.seminars.length - 1];
+
+    res.status(201).json({
+      success: true,
+      message: 'Seminar created successfully',
+      data: createdSeminar
+    });
+
+  } catch (err) {
+    console.error('Create seminar error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to create seminar', 
+      error: err.message 
+    });
+  }
+};
+
+// Get all seminars for an expert
+exports.getMySeminars = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const profile = await IndustryExpertProfile.findOne({ expert: userId });
+    
+    if (!profile) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Expert profile not found' 
+      });
+    }
+
+    res.json({
+      success: true,
+      data: profile.seminars || []
+    });
+
+  } catch (err) {
+    console.error('Get seminars error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch seminars', 
+      error: err.message 
+    });
+  }
+};
+
+// Update a seminar
+exports.updateSeminar = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { seminarId } = req.params;
+    const { title, description, date, time, fee } = req.body;
+
+    const profile = await IndustryExpertProfile.findOne({ expert: userId });
+    if (!profile) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Expert profile not found' 
+      });
+    }
+
+    const seminar = profile.seminars.id(seminarId);
+    if (!seminar) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Seminar not found' 
+      });
+    }
+
+    // Update seminar fields
+    if (title) seminar.title = title;
+    if (description !== undefined) seminar.description = description;
+    if (date) seminar.date = new Date(date);
+    if (time) seminar.time = time;
+    if (fee !== undefined) seminar.fee = fee;
+
+    await profile.save();
+
+    res.json({
+      success: true,
+      message: 'Seminar updated successfully',
+      data: seminar
+    });
+
+  } catch (err) {
+    console.error('Update seminar error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update seminar', 
+      error: err.message 
+    });
+  }
+};
+
+// Delete a seminar
+exports.deleteSeminar = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { seminarId } = req.params;
+
+    const profile = await IndustryExpertProfile.findOne({ expert: userId });
+    if (!profile) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Expert profile not found' 
+      });
+    }
+
+    // Check if seminar exists
+    const seminar = profile.seminars.id(seminarId);
+    if (!seminar) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Seminar not found' 
+      });
+    }
+
+    // Remove the seminar using pull method
+    profile.seminars.pull(seminarId);
+    await profile.save();
+
+    res.json({
+      success: true,
+      message: 'Seminar deleted successfully'
+    });
+
+  } catch (err) {
+    console.error('Delete seminar error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to delete seminar', 
+      error: err.message 
+    });
   }
 };
 

@@ -1,6 +1,7 @@
 import axios from 'axios';
+import apit from './apit';
 
-const API_URL = 'http://localhost:4000/api/notes';
+const API_URL = `${apit.defaults.baseURL}/api/notes`;
 
 // A helper function to get the authentication token from localStorage
 const getAuthHeaders = (isFormData = false) => {

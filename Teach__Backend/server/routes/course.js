@@ -7,6 +7,9 @@ const router = express.Router();
 // Create a new course
 router.post('/create', authenticateToken, async (req, res) => {
   try {
+    console.log('[Teach][POST /api/courses/create] headers:', req.headers);
+    console.log('[Teach][POST /api/courses/create] user from token:', req.user);
+    console.log('[Teach][POST /api/courses/create] body:', req.body);
     const {
       title,
       description,
@@ -24,18 +27,28 @@ router.post('/create', authenticateToken, async (req, res) => {
       endDate
     } = req.body;
 
-    const teacherId = req.user.teacherId || req.user.userId;
-    const teacher = await Teacher.findById(teacherId);
-    
-    if (!teacher) {
-      return res.status(404).json({ success: false, message: 'Teacher not found' });
+    const teacherId = req.user.teacherId || req.user.userId || req.user._id;
+    // Ensure only teachers can create courses
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ success: false, message: 'Only teachers can create courses' });
+    }
+
+    // Prefer Teacher profile if exists, but do not block creation if missing
+    let instructorName = req.user.name || 'Unknown';
+    try {
+      const prof = await Teacher.findById(teacherId);
+      if (prof) {
+        instructorName = prof.name || instructorName;
+      }
+    } catch (e) {
+      console.warn('[Teach][POST /api/courses/create] Teacher lookup failed, using user data:', e && e.message);
     }
 
     const course = new Course({
       title,
       description,
-      instructor: teacherId,
-      instructorName: teacher.name,
+      teacher: teacherId,
+      instructorName,
       category,
       subject,
       level: level || 'beginner',
@@ -60,7 +73,7 @@ router.post('/create', authenticateToken, async (req, res) => {
       course
     });
   } catch (error) {
-    console.error('Course creation error:', error);
+    console.error('[Teach][POST /api/courses/create] error:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
@@ -72,7 +85,7 @@ router.put('/:courseId', authenticateToken, async (req, res) => {
     const teacherId = req.user.teacherId || req.user.userId;
     const updates = req.body;
 
-    const course = await Course.findOne({ _id: courseId, instructor: teacherId });
+    const course = await Course.findOne({ _id: courseId, $or: [ { teacher: teacherId }, { instructor: teacherId } ] });
     
     if (!course) {
       return res.status(404).json({ success: false, message: 'Course not found or not authorized' });
@@ -150,15 +163,16 @@ router.get('/all', async (req, res) => {
 // Get teacher's courses
 router.get('/my-courses', authenticateToken, async (req, res) => {
   try {
-    const teacherId = req.user.teacherId || req.user.userId;
+    console.log('[Teach][GET /api/courses/my-courses] user from token:', req.user);
+    const teacherId = req.user.teacherId || req.user.userId || req.user._id;
     const { page = 1, limit = 10 } = req.query;
 
-    const courses = await Course.find({ instructor: teacherId })
+    const courses = await Course.find({ $or: [ { teacher: teacherId }, { instructor: teacherId }, { instructorName: req.user.name } ] })
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .sort({ createdAt: -1 });
 
-    const total = await Course.countDocuments({ instructor: teacherId });
+    const total = await Course.countDocuments({ $or: [ { teacher: teacherId }, { instructor: teacherId }, { instructorName: req.user.name } ] });
 
     res.json({
       success: true,
@@ -168,7 +182,7 @@ router.get('/my-courses', authenticateToken, async (req, res) => {
       total
     });
   } catch (error) {
-    console.error('Get teacher courses error:', error);
+    console.error('[Teach][GET /api/courses/my-courses] error:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
@@ -177,6 +191,7 @@ router.get('/my-courses', authenticateToken, async (req, res) => {
 router.get('/:courseId', async (req, res) => {
   try {
     const course = await Course.findById(req.params.courseId)
+      .populate('teacher', 'name avatar bio rating experience specialization')
       .populate('instructor', 'name avatar bio rating experience specialization');
 
     if (!course) {
@@ -229,7 +244,7 @@ router.post('/:courseId/enroll', authenticateToken, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found' });
     }
 
-    if (course.instructor.toString() === studentId) {
+    if ((course.teacher && course.teacher.toString() === studentId) || (course.instructor && course.instructor.toString() === studentId)) {
       return res.status(400).json({ success: false, message: 'Instructor cannot enroll in their own course' });
     }
 

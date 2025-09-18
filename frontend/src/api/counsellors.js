@@ -10,7 +10,7 @@ export const getCounsellorProfileById = (id) => api.get(`/api/counsellors/profil
 // Get counsellor availability for next 5 days
 export const getCounsellorNext5DaysAvailability = async (counsellorId) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/counsellor/availability/next5days/${counsellorId}`);
+    const response = await fetch(`${api.defaults.baseURL}/api/counsellor/availability/next5days/${counsellorId}`);
     if (!response.ok) {
       throw new Error('Failed to fetch availability');
     }
@@ -25,7 +25,7 @@ export const getCounsellorNext5DaysAvailability = async (counsellorId) => {
 // Get available slots for a specific date
 export const getCounsellorAvailableSlotsForDate = async (counsellorId, date) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/counsellor/availability/slots/${counsellorId}/${date}`);
+    const response = await fetch(`${api.defaults.baseURL}/api/counsellor/availability/slots/${counsellorId}/${date}`);
     if (!response.ok) {
       throw new Error('Failed to fetch available slots');
     }
@@ -63,7 +63,7 @@ export const bookSession = async (bookingData) => {
     console.log('Booking data:', bookingData);
     console.log('Token:', token ? 'Present' : 'Missing');
     
-    const response = await fetch('http://localhost:5000/api/counsellor/availability/book-session', {
+    const response = await fetch(`${api.defaults.baseURL}/api/counsellor/availability/book-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -112,7 +112,7 @@ export const bookSession = async (bookingData) => {
 // Get counsellor session types and pricing
 export const getCounsellorSessionTypes = async (counsellorId) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/counsellors/profile/${counsellorId}`);
+    const response = await fetch(`${api.defaults.baseURL}/api/counsellors/profile/${counsellorId}`);
     if (!response.ok) {
       throw new Error('Failed to fetch counsellor session types');
     }
@@ -135,7 +135,7 @@ export const getStudentSessions = async () => {
     console.log('Token:', token ? 'Present' : 'Missing');
     
     // Try the authenticated endpoint first
-    let response = await fetch('http://localhost:5000/api/counsellor/availability/student-sessions', {
+    let response = await fetch(`${api.defaults.baseURL}/api/counsellor/availability/student-sessions`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -149,7 +149,7 @@ export const getStudentSessions = async () => {
     // If authentication fails, try the test endpoint
     if (!response.ok) {
       console.log('Authentication failed, trying test endpoint...');
-      response = await fetch('/http://localhost:5000api/counsellor/availability/test-student-sessions', {
+      response = await fetch(`${api.defaults.baseURL}/api/counsellor/availability/test-student-sessions`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -177,45 +177,87 @@ export const getStudentSessions = async () => {
 export const getStudentWebinarBookings = async () => {
   try {
     const user = JSON.parse(localStorage.getItem('user'));
-    const token = user?.token;
-    
-    // For now, return mock data since we don't have a webinar booking API yet
-    // TODO: Replace with actual API call when webinar booking system is implemented
-    return {
-      success: true,
-      data: {
-        webinarBookings: [
-          {
-            id: 'web1',
-            type: 'webinar',
-            title: 'AI & Machine Learning for Business Growth',
-            provider: 'John Carter',
-            date: '2025-07-31',
-            time: '12:30',
-            duration: '90 minutes',
-            status: 'upcoming',
-            price: 499,
-            bookingId: 'WEB-001',
-            meetingLink: 'https://meet.google.com/abc123',
-            domain: 'Data Science'
-          },
-          {
-            id: 'web2',
-            type: 'webinar',
-            title: 'Digital Marketing Mastery 2026',
-            provider: 'John Carter',
-            date: '2025-08-01',
-            time: '08:30',
-            duration: '120 minutes',
-            status: 'upcoming',
-            price: 999,
-            bookingId: 'WEB-002',
-            meetingLink: 'https://meet.google.com/def456',
-            domain: 'Digital Marketing'
-          }
-        ]
+    const token = user?.token || localStorage.getItem('token');
+
+    // 1) Get student's webinar registrations
+    const regsRes = await fetch(`${api.defaults.baseURL}/api/webinar-registrations/student/registrations`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       }
-    };
+    });
+
+    const regsContentType = regsRes.headers.get('content-type') || '';
+    const regsData = regsContentType.includes('application/json') ? await regsRes.json() : { success: false };
+    if (!regsRes.ok || !regsData.success) {
+      throw new Error(regsData.message || 'Failed to fetch webinar registrations');
+    }
+
+    const registrations = Array.isArray(regsData.data) ? regsData.data : regsData.data?.registrations || [];
+
+    // 2) For each registration, fetch webinar details to resolve seminar title/date/time
+    const bookings = [];
+    for (const reg of registrations) {
+      const webinarId = reg.webinarId; // seminar subdocument id or profile id
+      try {
+        const detRes = await fetch(`${api.defaults.baseURL}/api/webinar-registrations/webinar/${webinarId}/details`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const detCT = detRes.headers.get('content-type') || '';
+        const detData = detCT.includes('application/json') ? await detRes.json() : { success: false };
+        if (!detRes.ok || !detData.success) {
+          // fallback minimal card using registration only
+          bookings.push({
+            id: reg._id,
+            type: 'webinar',
+            title: 'Webinar',
+            provider: reg.expertName || 'Industry Expert',
+            date: new Date().toISOString().split('T')[0],
+            time: '—',
+            duration: '90 minutes',
+            status: reg.status || 'upcoming',
+            price: reg.fee || 0,
+            bookingId: reg._id,
+            meetingLink: reg.meetingLink || ''
+          });
+        } else {
+          const w = detData.data?.webinar || {};
+          const expert = detData.data?.expert || {};
+          bookings.push({
+            id: reg._id,
+            type: 'webinar',
+            title: w.title || 'Webinar',
+            provider: expert.name || 'Industry Expert',
+            date: (w.date ? new Date(w.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+            time: w.time || '—',
+            duration: `${w.duration || 90} minutes`,
+            status: reg.status || 'upcoming',
+            price: w.fee ?? 0,
+            bookingId: reg._id,
+            meetingLink: reg.meetingLink || ''
+          });
+        }
+      } catch (e) {
+        // network or parse error, push minimal card
+        bookings.push({
+          id: reg._id,
+          type: 'webinar',
+          title: 'Webinar',
+          provider: 'Industry Expert',
+          date: new Date().toISOString().split('T')[0],
+          time: '—',
+          duration: '90 minutes',
+          status: reg.status || 'upcoming',
+          price: reg.fee || 0,
+          bookingId: reg._id,
+          meetingLink: ''
+        });
+      }
+    }
+
+    return { success: true, data: { webinarBookings: bookings } };
   } catch (error) {
     console.error('Error fetching webinar bookings:', error);
     throw error;

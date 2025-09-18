@@ -55,18 +55,22 @@ router.post('/register', async (req, res) => {
 // Login user
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
-    // Find user by email
-    const user = await User.findOne({ email });
+    if (!role) {
+      return res.status(400).json({ message: 'Role is required for login.' });
+    }
+
+    // Find user by email and role
+    const user = await User.findOne({ email, role });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: 'Invalid credentials or role.' });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
     // Update last login

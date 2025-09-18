@@ -1,6 +1,8 @@
 // Counsellor availability API function
 import api from "./api"; 
 
+const API_URL = `${api.defaults.baseURL}`;
+
 // Helper function to get auth token
 const getAuthToken = () => {
   try {
@@ -16,7 +18,7 @@ const getAuthToken = () => {
 export const getAvailabilityDashboard = async () => {
   try {
     const token = getAuthToken();
-    const response = await fetch('http://localhost:5000/api/counsellor/availability/dashboard', {
+    const response = await fetch(`${API_URL}/api/counsellor/availability/dashboard`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -41,7 +43,7 @@ export const setAvailability = async (dates) => {
   try {
     const token = getAuthToken();
     
-    const response = await fetch('http://localhost:5000/api/counsellor/availability/set-availability', {
+    const response = await fetch(`${API_URL}/api/counsellor/availability/set-availability`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -69,7 +71,7 @@ export const getUpcomingSessions = async () => {
   try {
     const token = getAuthToken();
     
-    const response = await fetch('http://localhost:5000/api/counsellor/availability/upcoming-sessions', {
+    const response = await fetch(`${API_URL}/api/counsellor/availability/upcoming-sessions`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -93,7 +95,7 @@ export const getUpcomingSessions = async () => {
 // Get next 5 days availability for public booking
 export const getNext5DaysAvailability = async (counsellorId) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/counsellor/availability/next5days/${counsellorId}`);
+    const response = await fetch(`${API_URL}/api/counsellor/availability/next5days/${counsellorId}`);
     if (!response.ok) {
       throw new Error('Failed to fetch availability');
     }
@@ -108,7 +110,7 @@ export const getNext5DaysAvailability = async (counsellorId) => {
 // Get available slots for a specific date
 export const getAvailableSlotsForDate = async (counsellorId, date) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/counsellor/availability/slots/${counsellorId}/${date}`);
+    const response = await fetch(`${API_URL}/api/counsellor/availability/slots/${counsellorId}/${date}`);
     if (!response.ok) {
       throw new Error('Failed to fetch available slots');
     }
@@ -125,7 +127,7 @@ export const bookSession = async (bookingData) => {
   try {
     const token = getAuthToken();
     
-    const response = await fetch('http://localhost:5000/api/counsellor/availability/book-session', {
+    const response = await fetch(`${API_URL}/api/counsellor/availability/book-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -156,7 +158,7 @@ export const getPendingBookings = async () => {
     console.log('Token:', token ? 'Present' : 'Missing');
     
     // Try the authenticated endpoint first
-    let response = await fetch('http://localhost:5000/api/counsellor/availability/pending-bookings', {
+    let response = await fetch(`${API_URL}/api/counsellor/availability/pending-bookings`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -170,7 +172,7 @@ export const getPendingBookings = async () => {
     // If authentication fails, try the test endpoint
     if (!response.ok) {
       console.log('Authentication failed, trying test endpoint...');
-      response = await fetch('http://localhost:5000/api/counsellor/availability/test-pending-bookings', {
+      response = await fetch(`${API_URL}/api/counsellor/availability/test-pending-bookings`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -199,7 +201,7 @@ export const updateBooking = async (bookingData) => {
   try {
     const token = getAuthToken();
     
-    const response = await fetch('http://localhost:5000/api/counsellor/availability/update-booking', {
+    const response = await fetch(`${API_URL}/api/counsellor/availability/update-booking`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -225,7 +227,7 @@ export const confirmBooking = async (bookingId, meetingLink) => {
   try {
     const token = getAuthToken();
     
-    const response = await fetch('http://localhost:5000/api/counsellor/availability/confirm-booking', {
+    const response = await fetch(`${API_URL}/api/counsellor/availability/confirm-booking`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -251,7 +253,7 @@ export const toggleBookingStatus = async (stopTakingBookings, reason = '') => {
   try {
     const token = getAuthToken();
     
-    const response = await fetch('http://localhost:5000/api/counsellor/availability/toggle-booking-status', {
+    const response = await fetch(`${API_URL}/api/counsellor/availability/toggle-booking-status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -281,7 +283,7 @@ export const allocateSlot = async (allocationData) => {
     console.log('Allocation data:', allocationData);
     console.log('Token:', token ? 'Present' : 'Missing');
     
-    const response = await fetch('http://localhost:5000/api/counsellor/availability/allocate-slot', {
+    const response = await fetch(`${API_URL}/api/counsellor/availability/allocate-slot`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const Student = require('../models/Student');
-const User = require('../models/Counsellor'); 
+const User = require('../models/Counsellor');
+const Teacher = require('../models/Teacher');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_here_2024';
@@ -40,22 +41,29 @@ const authMiddleware = (role) => asyncHandler(async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, JWT_SECRET);
       
-      console.log('Auth middleware - decoded token:', decoded); // Debug log
-      console.log('Auth middleware - token payload:', { id: decoded.id, role: decoded.role }); // Debug log
+      // Normalize role from token: support `role` or `type`, any case
+      const tokenRoleRaw = decoded.role || decoded.type || decoded.userType;
+      const tokenRole = tokenRoleRaw ? String(tokenRoleRaw).toLowerCase() : undefined;
       
+      console.log('Auth middleware - decoded token:', decoded); // Debug log
+      console.log('Auth middleware - normalized role:', tokenRole); // Debug log
+      
+      // Try to find user robustly by ID across user collections
       let user = null;
-      if (['counsellor', 'industry_expert'].includes(decoded.role)) {
-        user = await User.findById(decoded.id).select('-password');
-      } else if (decoded.role === 'student') {
-        user = await Student.findById(decoded.id).select('-password');
-      } else if (decoded.role === 'teacher') {
+      // Prefer student first since most routes expect students
+      user = await Student.findById(decoded.id).select('-password');
+      if (!user && tokenRole === 'teacher') {
         user = await Teacher.findById(decoded.id).select('-password');
-      } else if (decoded.role === 'admin') {
-        // For admin, you may have a separate Admin model or flag on Student/Teacher
-        user = await Student.findById(decoded.id).select('-password');
-        if (!user || user.userType !== 'admin') {
-          return res.status(403).json({ message: 'Access denied, admin only' });
-        }
+      }
+      if (!user && (tokenRole === 'counsellor' || tokenRole === 'industry_expert')) {
+        user = await User.findById(decoded.id).select('-password');
+      }
+      // As a fallback, try other models if still not found
+      if (!user) {
+        user = await Teacher.findById(decoded.id).select('-password') || user;
+      }
+      if (!user) {
+        user = await User.findById(decoded.id).select('-password') || user;
       }
       
       console.log('Auth middleware - found user:', user ? { id: user._id, userType: user.userType, role: user.role } : 'No user found'); // Debug log
@@ -70,16 +78,16 @@ const authMiddleware = (role) => asyncHandler(async (req, res, next) => {
         req.user._id = req.user.id;
       }
       console.log('Auth middleware - final user object:', { id: req.user._id, userType: req.user.userType, role: req.user.role });
-      // If role is specified, check it
+      
+      // If a specific role is required, check it
       if (role) {
-        let userRole;
-        if (['counsellor', 'industry_expert'].includes(decoded.role)) {
-          userRole = user.role;
-        } else {
-          userRole = user.userType ? user.userType.toLowerCase() : 'student';
+        // Determine effective role string for this user
+        let effectiveRole = tokenRole;
+        if (!effectiveRole) {
+          effectiveRole = user.role ? String(user.role).toLowerCase() : (user.userType ? String(user.userType).toLowerCase() : undefined);
         }
-        console.log('Auth middleware - checking role:', { required: role, userRole }); // Debug log
-        if (userRole !== role) {
+        console.log('Auth middleware - checking role:', { required: role, userRole: effectiveRole }); // Debug log
+        if (!effectiveRole || effectiveRole !== role) {
           return res.status(403).json({ message: `Access denied, ${role} only` });
         }
       }

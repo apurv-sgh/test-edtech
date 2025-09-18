@@ -3,6 +3,7 @@ const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const CounsellorAvailability = require('../models/CounsellorAvailability');
 const User = require('../models/Counsellor'); // User model
+const crypto = require('crypto');
 
 // @desc    Initialize payment for a booking
 // @route   POST /api/payments/initialize
@@ -45,8 +46,39 @@ const initializePayment = asyncHandler(async (req, res) => {
       paymentStatus: 'pending'
     });
 
-    // For now, simulate payment gateway integration
-    // In production, this would integrate with Razorpay, PayPal, etc.
+    // Cashfree order init
+    if (paymentMethod === 'cashfree') {
+      const orderId = payment.transactionId; // reuse internal txn id
+      const orderAmount = payment.amount;
+      const orderCurrency = payment.currency || 'INR';
+
+      const cashfreePayload = {
+        order_id: orderId,
+        order_amount: orderAmount,
+        order_currency: orderCurrency,
+        customer_details: {
+          customer_id: String(booking.student._id),
+          customer_email: booking.student.email || 'customer@example.com',
+          customer_phone: booking.student.phone || '9999999999'
+        },
+        order_meta: {
+          return_url: process.env.PAYMENT_SUCCESS_URL || 'http://localhost:5173/payment/success'
+        }
+      };
+
+      // We do not call Cashfree server here to avoid new deps; let frontend use JS SDK with provided order info
+      return res.json({
+        success: true,
+        data: {
+          gateway: 'cashfree',
+          order: cashfreePayload,
+          paymentId: payment._id,
+          transactionId: payment.transactionId
+        }
+      });
+    }
+
+    // For now, simulate payment gateway integration for other methods
     const paymentData = {
       paymentId: payment._id,
       transactionId: payment.transactionId,
@@ -79,6 +111,64 @@ const initializePayment = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Cashfree webhook
+// @route   POST /api/payments/cashfree/webhook
+// @access  Public (validate via signature)
+const cashfreeWebhook = asyncHandler(async (req, res) => {
+  try {
+    const signature = req.headers['x-webhook-signature'] || req.headers['x-cashfree-signature'];
+    const secret = process.env.CASHFREE_WEBHOOK_SECRET;
+    if (!secret) {
+      console.warn('CASHFREE_WEBHOOK_SECRET not set');
+    }
+
+    // Verify HMAC if possible
+    if (signature && secret) {
+      const payload = JSON.stringify(req.body);
+      const computed = crypto.createHmac('sha256', secret).update(payload).digest('base64');
+      if (computed !== signature) {
+        console.warn('Invalid Cashfree signature');
+        return res.status(400).json({ success: false });
+      }
+    }
+
+    const { data } = req.body || {};
+    const orderId = data?.order?.order_id;
+    const status = data?.order?.status || data?.payment?.payment_status;
+    const gatewayTxn = data?.payment?.cf_payment_id || data?.payment?.payment_id || data?.order?.cf_order_id;
+
+    if (!orderId) {
+      return res.status(400).json({ success: false, error: 'Missing order_id' });
+    }
+
+    const payment = await Payment.findOne({ transactionId: orderId });
+    if (!payment) {
+      return res.status(404).json({ success: false, error: 'Payment not found' });
+    }
+
+    if (status && ['PAID', 'SUCCESS', 'COMPLETED'].includes(String(status).toUpperCase())) {
+      payment.paymentStatus = 'completed';
+    } else if (status && ['FAILED'].includes(String(status).toUpperCase())) {
+      payment.paymentStatus = 'failed';
+    } else {
+      payment.paymentStatus = 'processing';
+    }
+
+    payment.gatewayTransactionId = gatewayTxn || payment.gatewayTransactionId;
+    payment.gatewayResponse = req.body;
+    await payment.save();
+
+    if (payment.paymentStatus === 'completed') {
+      await updateCounsellorAvailability(payment.booking);
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Cashfree webhook error:', err);
+    return res.status(500).json({ success: false });
+  }
+});
+
 // @desc    Process payment (simulate payment gateway)
 // @route   POST /api/payments/process
 // @access  Private
@@ -101,76 +191,42 @@ const processPayment = asyncHandler(async (req, res) => {
       throw new Error('Payment is not in pending status');
     }
 
-    // Simulate payment processing
-    payment.paymentStatus = 'processing';
+    // DEMO MODE: Immediately complete payment without delay
+    payment.paymentStatus = 'completed';
+    payment.gatewayTransactionId = `GW_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    payment.gatewayResponse = {
+      status: 'success',
+      message: 'Payment processed successfully (demo)',
+      timestamp: new Date()
+    };
+    if (paymentDetails) {
+      payment.paymentDetails = {
+        cardLast4: paymentDetails.cardNumber?.slice(-4),
+        cardBrand: paymentDetails.cardBrand || 'Visa',
+        upiId: paymentDetails.upiId,
+        bankName: paymentDetails.bankName
+      };
+    }
     await payment.save();
 
-    // Simulate payment gateway response
-    setTimeout(async () => {
-      try {
-        // Simulate successful payment (90% success rate for demo)
-        const isSuccess = Math.random() > 0.1;
-        
-        if (isSuccess) {
-          payment.paymentStatus = 'completed';
-          payment.gatewayTransactionId = `GW_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          payment.gatewayResponse = {
-            status: 'success',
-            message: 'Payment processed successfully',
-            timestamp: new Date()
-          };
-          
-          // Update payment details
-          if (paymentDetails) {
-            payment.paymentDetails = {
-              cardLast4: paymentDetails.cardNumber?.slice(-4),
-              cardBrand: paymentDetails.cardBrand || 'Visa',
-              upiId: paymentDetails.upiId,
-              bankName: paymentDetails.bankName
-            };
-          }
+    // Update booking status
+    const booking = await Booking.findById(payment.booking);
+    if (booking) {
+      booking.paymentStatus = 'completed';
+      booking.paymentId = payment.transactionId;
+      await booking.save();
+    }
 
-          // Update booking status
-          const booking = await Booking.findById(payment.booking);
-          if (booking) {
-            booking.paymentStatus = 'completed';
-            booking.paymentId = payment.transactionId;
-            await booking.save();
-          }
-
-          // Update counsellor availability
-          await updateCounsellorAvailability(payment.booking);
-
-        } else {
-          payment.paymentStatus = 'failed';
-          payment.gatewayResponse = {
-            status: 'failed',
-            message: 'Payment failed - insufficient funds',
-            timestamp: new Date()
-          };
-        }
-
-        await payment.save();
-
-      } catch (error) {
-        console.error('Payment processing error:', error);
-        payment.paymentStatus = 'failed';
-        payment.gatewayResponse = {
-          status: 'failed',
-          message: 'Payment processing error',
-          timestamp: new Date()
-        };
-        await payment.save();
-      }
-    }, 2000); // Simulate 2-second processing time
+    // Update counsellor availability
+    await updateCounsellorAvailability(payment.booking);
 
     res.json({
       success: true,
       data: {
         paymentId: payment._id,
         transactionId: payment.transactionId,
-        status: 'processing',
-        message: 'Payment is being processed'
+        status: 'completed',
+        message: 'Payment completed (demo)'
       }
     });
 
@@ -326,5 +382,6 @@ module.exports = {
   initializePayment,
   processPayment,
   getPaymentStatus,
-  getPaymentHistory
+  getPaymentHistory,
+  cashfreeWebhook
 };

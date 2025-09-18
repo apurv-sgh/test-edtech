@@ -35,12 +35,21 @@ const addLessonToCourse = asyncHandler(async (req, res) => {
 // @route   POST /api/courses
 // @access  Private
 const createCourse = asyncHandler(async (req, res) => {
-    const { title, description } = req.body;
+    const { title, description, category, level, duration, price, thumbnail } = req.body;
+    console.log('[COURSES] POST /api/courses payload:', { title, description, category, level, duration, price, thumbnail, userId: req.user && req.user._id });
+
     const course = await Course.create({
         title,
         description,
+        category,
+        level,
+        duration,
+        price,
+        thumbnail,
         teacher: req.user._id
     });
+
+    console.log('[COURSES] Created course:', { id: course._id, title: course.title });
     res.status(201).json(course);
 });
 
@@ -48,12 +57,14 @@ const createCourse = asyncHandler(async (req, res) => {
 // @route   GET /api/courses
 // @access  Public
 const getCourses = asyncHandler(async (req, res) => {
-    const courses = await Course.find({ isPublished: true })
+    console.log('[COURSES] GET /api/courses');
+    const courses = await Course.find({}, '-studentsEnrolled -lessons')
         .populate('teacher', 'name email')
         .populate('tests', 'title')
         .populate('quizzes', 'title')
-        .select('-studentsEnrolled');
+        .lean();
 
+    console.log('[COURSES] Fetched count:', courses && courses.length);
     res.json(courses);
 });
 
@@ -62,12 +73,12 @@ const getCourses = asyncHandler(async (req, res) => {
 // @access  Public
 const getCourseById = asyncHandler(async (req, res) => {
     const course = await Course.findById(req.params.id)
+        .select('-studentsEnrolled -lessons')
         .populate('teacher', 'name email')
-        .populate('studentsEnrolled', 'name email')
         .populate('notes', 'title fileName uploadDate')
         .populate('tests', 'title')
         .populate('quizzes', 'title')
-        .select('-studentsEnrolled');
+        .lean();
 
     if (!course) {
         res.status(404);
@@ -81,31 +92,36 @@ const getCourseById = asyncHandler(async (req, res) => {
 // @route   POST /api/courses/:id/enroll
 // @access  Private
 const enrollInCourse = asyncHandler(async (req, res) => {
-    const course = await Course.findById(req.params.id);
-    if (!course) {
+    const courseId = req.params.id;
+    const studentId = req.user._id;
+
+    // Atomically add student to course if not already present
+    const courseUpdate = await Course.updateOne(
+        { _id: courseId, studentsEnrolled: { $ne: studentId } },
+        { $addToSet: { studentsEnrolled: studentId } }
+    );
+
+    if (courseUpdate.matchedCount === 0) {
         res.status(404);
         throw new Error('Course not found');
     }
-
-    // Check if student already enrolled
-    if (course.studentsEnrolled.includes(req.user._id)) {
+    if (courseUpdate.modifiedCount === 0) {
         res.status(400);
         throw new Error('Already enrolled in this course');
     }
 
-    // Add student to course
-    course.studentsEnrolled.push(req.user._id);
-    await course.save();
+    // Ensure the student document exists and add the course if not present
+    const studentUpdate = await Student.updateOne(
+        { _id: studentId, enrolledCourses: { $ne: courseId } },
+        { $addToSet: { enrolledCourses: courseId } }
+    );
 
-    // Fetch student and validate
-    const student = await Student.findById(req.user._id);
-    if (!student) {
+    if (studentUpdate.matchedCount === 0) {
+        // rollback course enrollment to keep data consistent
+        await Course.updateOne({ _id: courseId }, { $pull: { studentsEnrolled: studentId } });
         res.status(404);
         throw new Error('Student not found. Ensure this user is registered as a student.');
     }
-
-    student.enrolledCourses.push(course._id);
-    await student.save();
 
     res.json({ message: 'Successfully enrolled in course' });
 });
@@ -114,30 +130,29 @@ const enrollInCourse = asyncHandler(async (req, res) => {
 // @route   DELETE /api/courses/:id/unenroll
 // @access  Private
 const unenrollFromCourse = asyncHandler(async (req, res) => {
-    const course = await Course.findById(req.params.id);
-    if (!course) {
+    const courseId = req.params.id;
+    const studentId = req.user._id;
+
+    // Atomically pull student from course
+    const courseUpdate = await Course.updateOne(
+        { _id: courseId, studentsEnrolled: studentId },
+        { $pull: { studentsEnrolled: studentId } }
+    );
+
+    if (courseUpdate.matchedCount === 0) {
         res.status(404);
         throw new Error('Course not found');
     }
-
-    // Check if student is enrolled
-    if (!course.studentsEnrolled.includes(req.user._id)) {
+    if (courseUpdate.modifiedCount === 0) {
         res.status(400);
         throw new Error('Not enrolled in this course');
     }
 
-    // Remove student from course
-    course.studentsEnrolled = course.studentsEnrolled.filter(
-        studentId => studentId.toString() !== req.user._id.toString()
+    // Pull course from student's list if present
+    await Student.updateOne(
+        { _id: studentId },
+        { $pull: { enrolledCourses: courseId } }
     );
-    await course.save();
-
-    // Remove course from student's enrolled courses
-    const student = await Student.findById(req.user._id);
-    student.enrolledCourses = student.enrolledCourses.filter(
-        courseId => courseId.toString() !== course._id.toString()
-    );
-    await student.save();
 
     res.json({ message: 'Successfully unenrolled from course' });
 });

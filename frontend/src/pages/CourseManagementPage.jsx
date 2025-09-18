@@ -8,13 +8,25 @@ import { toast } from 'react-toastify';
 
 // --- Reusable Modal Component for the Form ---
 const CourseModal = ({ isOpen, onClose, onSave, courseToEdit }) => {
-  const [formData, setFormData] = useState({ title: '', category: 'JEE', level: 'Beginner', description: '' });
+  const categoryOptions = [
+    'JEE','NEET','Information Technology','Computer Science','Data Science','Artificial Intelligence','Machine Learning','Web Development','Mobile Development','Cloud Computing','Cybersecurity','Marketing','Finance','Science','Arts & Humanities','Economics','Health & Medicine','Engineering','Business','Languages'
+  ];
+  const levelOptions = ['Beginner','Intermediate','Advanced'];
+  const [formData, setFormData] = useState({ title: '', subject: '', duration: '', category: 'JEE', level: 'Beginner', description: '', thumbnail: '' });
 
   useEffect(() => {
     if (courseToEdit) {
-      setFormData(courseToEdit);
+      setFormData({
+        title: courseToEdit.title || '',
+        subject: courseToEdit.subject || '',
+        duration: courseToEdit.duration || '',
+        category: courseToEdit.category || 'JEE',
+        level: courseToEdit.level || 'Beginner',
+        description: courseToEdit.description || '',
+        thumbnail: courseToEdit.thumbnail || ''
+      });
     } else {
-      setFormData({ title: '', category: 'JEE', level: 'Beginner', description: '' });
+      setFormData({ title: '', subject: '', duration: '', category: 'JEE', level: 'Beginner', description: '', thumbnail: '' });
     }
   }, [courseToEdit, isOpen]);
 
@@ -32,10 +44,11 @@ const CourseModal = ({ isOpen, onClose, onSave, courseToEdit }) => {
         <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"><FiX/></button>
         <h2 className="text-2xl font-bold mb-4">{courseToEdit ? 'Edit Course' : 'Create New Course'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div><label>Course Title</label><input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div>
-          <div className="flex gap-4"><div className="w-1/2"><label>Subject Name</label><input type="text" value={formData.subject} onChange={(e) => setFormData({...formData, subject: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div><div className="w-1/2"><label>Duration</label><input type="number" value={formData.duration} onChange={(e) => setFormData({...formData, duration: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div></div>
-          <div className="flex gap-4"><div className="w-1/2"><label>Category</label><input type="text" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div><div className="w-1/2"><label>Level</label><select value={formData.level} onChange={(e) => setFormData({...formData, level: e.target.value})} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div></div>
-          <div><label>Description</label><textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows="3" className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"></textarea></div>
+          <div><label>Course Title</label><input type="text" value={formData.title || ''} onChange={(e) => setFormData({...formData, title: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div>
+          <div className="flex gap-4"><div className="w-1/2"><label>Subject Name</label><input type="text" value={formData.subject || ''} onChange={(e) => setFormData({...formData, subject: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div><div className="w-1/2"><label>Duration</label><input type="number" value={formData.duration || ''} onChange={(e) => setFormData({...formData, duration: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div></div>
+          <div className="flex gap-4"><div className="w-1/2"><label>Category</label><select value={formData.category || 'JEE'} onChange={(e) => setFormData({...formData, category: e.target.value})} required className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">{categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}</select></div><div className="w-1/2"><label>Level</label><select value={formData.level || 'Beginner'} onChange={(e) => setFormData({...formData, level: e.target.value})} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">{levelOptions.map(l => <option key={l} value={l}>{l}</option>)}</select></div></div>
+          <div><label>Thumbnail URL</label><input type="url" placeholder="https://..." value={formData.thumbnail || ''} onChange={(e) => setFormData({...formData, thumbnail: e.target.value})} className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"/></div>
+          <div><label>Description</label><textarea value={formData.description || ''} onChange={(e) => setFormData({...formData, description: e.target.value})} rows="3" className="w-full mt-1 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"></textarea></div>
           <button type="submit" className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-focus">{courseToEdit ? 'Save Changes' : 'Create Course'}</button>
         </form>
       </motion.div>
@@ -54,11 +67,17 @@ const [loading, setLoading] = useState(true);
   const fetchCourses = async () => {
     try{
       setLoading(true);
+      console.log('[CourseManagementPage] Fetching my courses...');
       const response = await getMyCourses();
-      setCourses(response.data.courses);
+      console.log('[CourseManagementPage] getMyCourses response:', response && response.data);
+      const data = response && response.data;
+      const normalized = Array.isArray(data) ? data : (data && Array.isArray(data.courses) ? data.courses : []);
+      setCourses(normalized);
     } catch (error) {
-      toast.error('Could not fetch your courses. Please try again later.');
-      console.error(error);
+      const status = error?.response?.status;
+      const msg = error?.response?.data?.message || error.message;
+      toast.error(status === 401 ? 'Please login as a teacher to continue.' : 'Could not fetch your courses.');
+      console.error('[CourseManagementPage] getMyCourses error:', { status, msg, error });
     } finally {
       setLoading(false);
     }
@@ -151,10 +170,13 @@ const [loading, setLoading] = useState(true);
             <AnimatePresence>
               {courses.map(course => (
                 <motion.div
-                  key={course.id} layout
+                  key={course._id || course.id} layout
                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                   className="bg-white dark:bg-dark-card rounded-xl shadow-md flex flex-col"
                 >
+                  {course.thumbnail && (
+                    <img src={course.thumbnail} alt={course.title} className="w-full h-40 object-cover rounded-t-xl" />
+                  )}
                   <div className="p-6 flex-grow">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs bg-primary/10 text-primary dark:text-sky-400 font-semibold px-2 py-1 rounded-full">{course.category}</span>

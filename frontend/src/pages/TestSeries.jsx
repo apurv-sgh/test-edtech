@@ -1,10 +1,9 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { FaClipboardList, FaQuestionCircle, FaClock, FaPlay, FaEdit, FaTrash, FaPlus, FaExclamationTriangle, FaBookOpen, FaFilter } from 'react-icons/fa';
 import { getTests, createTest, updateTest, deleteTest } from '../api/tests';
 import { toast } from 'react-toastify';
-
 
 const categories = ['All', 'JEE', 'NEET', 'UPSC', 'Class 12th'];
 
@@ -58,6 +57,7 @@ const TestSeriesForm = ({ onSave, testToEdit, onCancelEdit }) => {
 
 const TestSeriesPage = () => {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [tests, setTests] = useState([]);
   const [testToEdit, setTestToEdit] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -204,6 +204,7 @@ const TestSeriesPage = () => {
                     key={test._id || test.id}
                     className="relative group bg-white/80 dark:bg-dark-card/90 backdrop-blur-md rounded-3xl shadow-2xl flex flex-col border border-primary/10 dark:border-primary/20 hover:scale-[1.04] hover:shadow-[0_8px_32px_0_rgba(0,123,255,0.15)] transition-all duration-200 overflow-hidden cursor-pointer"
                     style={{ boxShadow: '0 2px 16px 0 rgba(80,120,255,0.08)' }}
+                    onClick={() => navigate('/question-paper-creator')}
                   >
                     {/* Animated left bar */}
                     <div className="absolute left-0 top-0 h-full w-2 bg-gradient-to-b from-primary via-blue-400 to-green-400 dark:from-primary dark:via-blue-700 dark:to-green-700 animate-pulse rounded-l-3xl" />

@@ -8,89 +8,106 @@ const { initializeCronJobs } = require('./utils/cronService');
 // Load env variables
 dotenv.config();
 
-// Connect to Database
-connectDB();
-
-// Initialize cron jobs for notifications
-initializeCronJobs();
-
 const app = express();
+// const __dirname = path.resolve();
 
 // Middleware
+const allowedOrigins = [
+    'https://zegnite-frontend.onrender.com',
+    'http://localhost:5174',
+    'http://localhost:5173'  // Added for local development
+];
+
 const corsOptions = {
-    origin: 'http://localhost:5173',
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        } else {
+            return callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 };
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Set static folder
+// Static folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Basic route
+// Health check route
 app.get('/', (req, res) => {
-    res.send('API is running...');
+    res.send('✅ API is running...');
 });
 
 // Import routes
-const authRoutes = require('./routes/authRoutes');
-const courseRoutes = require('./routes/courseRoutes');
-const noteRoutes = require('./routes/noteRoutes');
-const testRoutes = require('./routes/testRoutes');
-const quizRoutes = require('./routes/quizRoutes');
-const liveSessionRoutes = require('./routes/liveSession');
-const liveClassRoutes = require('./routes/liveClassRoutes');
-const chatRoutes = require('./routes/chatRoutes');
-const discussionRoutes = require('./routes/discussionRoutes');
-const studyPlanRoutes = require('./routes/studyPlanRoutes');
-const channelRoutes = require('./routes/channelRoutes');
-const studetRoutes = require('./routes/studentRoutes');
-const teacherRoutes = require('./routes/teacherRoutes')
-const counsellorRoutes = require('./routes/counsellorRoutes');
-const counsellorAvailabilityRoutes = require('./routes/counsellorAvailabilityRoutes');
-const industryExpertRoutes = require('./routes/industryExpertRoutes');
-const userRoutes = require('./routes/userRoutes');
-const webinarRegistrationRoutes = require('./routes/webinarRegistrations');
-const notificationRoutes = require('./routes/notifications');
-const reviewRoutes = require('./routes/reviewRoutes');
-const bookingRoutes = require('./routes/bookingRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/courses', require('./routes/courseRoutes'));
+app.use('/api/notes', require('./routes/noteRoutes'));
+app.use('/api/tests', require('./routes/testRoutes'));
+app.use('/api/quizzes', require('./routes/quizRoutes'));
+app.use('/api/live-sessions', require('./routes/liveSession'));
+app.use('/api/live-classes', require('./routes/liveClassRoutes'));
+app.use('/api/chats', require('./routes/chatRoutes'));
+app.use('/api/discussions', require('./routes/discussionRoutes'));
+app.use('/api/study-plans', require('./routes/studyPlanRoutes'));
+app.use('/api/channels', require('./routes/channelRoutes'));
+app.use('/api/students', require('./routes/studentRoutes'));
+app.use('/api/teachers', require('./routes/teacherRoutes'));
+app.use('/api/counsellors', require('./routes/counsellorRoutes'));
+app.use('/api/counsellor/availability', require('./routes/counsellorAvailabilityRoutes'));
+app.use('/api/industry-experts', require('./routes/industryExpertRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/webinar-registrations', require('./routes/webinarRegistrations'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/bookings', require('./routes/bookingRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api', require('./routes/reviewRoutes'));
+app.use('/api/categories', require('./routes/categoryRoutes'));
 
-// Mount Routers
-app.use('/api/auth', authRoutes);
-app.use('/api/courses', courseRoutes);
-app.use('/api/notes', noteRoutes);
-app.use('/api/tests', testRoutes);
-app.use('/api/quizzes', quizRoutes);
-app.use('/api/live-sessions', liveSessionRoutes);
-app.use('/api/live-classes', liveClassRoutes);
-app.use('/api/chats', chatRoutes);
-app.use('/api/discussions', discussionRoutes);
-app.use('/api/study-plans', studyPlanRoutes);
-app.use('/api/channels', channelRoutes);
-app.use('/api/students', studetRoutes);
-app.use('/api/teachers', teacherRoutes)
-app.use('/api/counsellors', counsellorRoutes);
-app.use('/api/counsellor/availability', counsellorAvailabilityRoutes);
-app.use('/api/industry-experts', industryExpertRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/webinar-registrations', webinarRegistrationRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api', reviewRoutes);
+// Serve static files from React app (only in production)
+if (process.env.NODE_ENV === 'production') {
+    app.use(
+        express.static(path.join(__dirname, "dist"), {
+            setHeaders: (res, filePath) => {
+                if (filePath.endsWith(".css")) {
+                    res.setHeader("Content-Type", "text/css");
+                }
+            },
+        })
+    );
+
+    app.get("*", (req, res) => {
+        res.sendFile(path.join(__dirname, "dist", "index.html"));
+    });
+}
 
 // Global error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).json({
+    const status = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
+    res.status(status).json({
         success: false,
         error: err.message || 'Server Error'
     });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`)
-});
+// Start Server only after DB connection
+const startServer = async () => {
+    try {
+        await connectDB(); // Wait until DB is connected
+        initializeCronJobs(); 
+
+        const PORT = process.env.PORT;
+        app.listen(PORT, () => {
+            console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+        });
+    } catch (err) {
+        console.error("❌ Failed to connect DB:", err.message);
+        
+    }
+};
+
+startServer();

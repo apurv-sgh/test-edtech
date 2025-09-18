@@ -1,6 +1,7 @@
 import axios from 'axios';
+import apit from './apit';
 // Your backend now runs on port 5000 as per your index.js
-const API_URL = 'http://localhost:4000/api/community'; 
+const API_URL = `${apit.defaults.baseURL}/api/community`; 
 
 const getAuthHeaders = (isFormData = false) => {
   // Use teacherToken if available, otherwise fallback to token

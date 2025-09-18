@@ -3,6 +3,7 @@ const User = require('../models/User');
 
 const authenticateToken = async (req, res, next) => {
   try {
+    console.log('[Teach][Auth] Incoming Authorization:', req.header('Authorization'));
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
@@ -10,47 +11,35 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Handle both user and teacher tokens
-    let authenticatedUser = null;
-    
-    if (decoded.userId) {
-      authenticatedUser = await User.findById(decoded.userId).select('-password');
-    } else if (decoded.teacherId) {
-      const Teacher = require('../models/Teacher');
-      authenticatedUser = await Teacher.findById(decoded.teacherId).select('-password');
-    }
-    
-    if (!authenticatedUser) {
-      return res.status(401).json({ message: 'Invalid token.' });
+    console.log('[Teach][Auth] Decoded JWT:', decoded);
+
+    // Always attach decoded claims so downstream routes have identifiers
+    req.user = { ...decoded };
+
+    // Best-effort fetch of user for enrichment; do not block if DB is unavailable
+    try {
+      if (decoded.userId) {
+        const userDoc = await User.findById(decoded.userId).select('-password');
+        if (userDoc) {
+          req.user = { ...req.user, ...userDoc.toObject() };
+        }
+      } else if (decoded.teacherId) {
+        const Teacher = require('../models/Teacher');
+        const teacherDoc = await Teacher.findById(decoded.teacherId).select('-password');
+        if (teacherDoc) {
+          req.user = { ...req.user, ...teacherDoc.toObject() };
+        }
+      }
+    } catch (dbErr) {
+      // Log and proceed with decoded-only user in dev scenarios
+      console.warn('[Teach][Auth] Enrichment skipped due to DB error:', dbErr && dbErr.message);
     }
 
-    req.user = { ...decoded, ...authenticatedUser.toObject() };
-    next();
+    return next();
   } catch (error) {
-    res.status(401).json({ message: 'Invalid token.' });
+    return res.status(401).json({ message: 'Invalid token.' });
   }
 };
-
-// const requireRole = (roles) => {
-//   return (req, res, next) => {
-//     if (!req.user) {
-//       return res.status(401).json({ message: 'Authentication required.' });
-//     }
-
-//     if (!roles.includes(req.user.role)) {
-//       return res.status(403).json({ message: 'Insufficient permissions.' });
-//     }
-
-//     next();
-//   };
-// };
-
-// module.exports = {
-//   authenticateToken,
-//   requireRole
-// };
-// middleware/auth.js
 
 // In a real app, you would fetch the user from the database.
 // For this example, we'll simulate user objects.
@@ -59,7 +48,7 @@ const mockUsers = {
   'student_token': { id: '652f8b5f3d3c8a4b8e8f8f8f', name: 'John Doe', role: 'student' }
 };
 
-const auth = (req, res, next) => {
+const auth = async (req, res, next) => {
   try {
     // 1. Look for the 'Authorization' header.
     const authHeader = req.header('Authorization');
@@ -74,16 +63,16 @@ const auth = (req, res, next) => {
 
     // In a real app with JWT, you would verify the token here:
     // const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // req.user = await User.findById(decoded.id);
+    req.user = await User.findById(decoded._id);
 
     // For our demo, we look up the token in our mock user object:
-    const user = mockUsers[token];
-    if (!user) {
+    // const user = mockUsers[token];
+    if (!req.user) {
       return res.status(401).json({ message: 'Authorization denied. Invalid token.' });
     }
     
     // 4. Attach the user object to the request and proceed.
-    req.user = user;
+    // req.user = user;
     next();
 
   } catch (error) {

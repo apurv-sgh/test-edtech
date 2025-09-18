@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { FaTimes, FaCalendar, FaClock, FaUser, FaEnvelope, FaPhone, FaGraduationCap } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import api from '../../api/api';
+
+const API_URL= `${api.defaults.baseURL}`;
 
 const WebinarRegistrationModal = ({ 
   isOpen, 
@@ -32,7 +35,7 @@ const WebinarRegistrationModal = ({
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/industry-experts/webinars/${webinar._id}/register`, {
+      const response = await fetch(`${API_URL}/api/industry-experts/webinars/${webinar._id}/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

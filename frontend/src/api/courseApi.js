@@ -1,6 +1,8 @@
 import axios from 'axios';
+import apit from './apit';
 
-const API_URL = 'http://localhost:4000/api/courses';
+const API_URL = `${apit.defaults.baseURL}/api/courses`;
+// const API_URL = `https://zegnite-teach-back-oini.onrender.com/api/courses`;
 
 const getAuthHeaders = () => {
   // Use teacherToken if available, otherwise fallback to token
@@ -12,22 +14,29 @@ const getAuthHeaders = () => {
 
 // GET /api/courses/my-courses
 export const getMyCourses = () => {
-  return axios.get(`${API_URL}/my-courses`, { headers: getAuthHeaders() });
+  const url = `${API_URL}/my-courses`;
+  const headers = getAuthHeaders();
+  console.log('[courseApi] GET', url, 'headers:', headers);
+  return axios.get(url, { headers });
 };
 
-// POST /api/courses/create
+// POST /api/courses/create (Teach backend)
 export const createCourse = (courseData) => {
   // The payload here matches the fields in your backend's create function
   const payload = {
     title: courseData.title,
     description: courseData.description,
-    subjects: courseData.subjects,
     category: courseData.category,
+    subject: courseData.subject,
     level: courseData.level,
     duration: courseData.duration,
-    tags: courseData.tags
+    price: courseData.price,
+    thumbnail: courseData.thumbnail
   };
-  return axios.post(`${API_URL}/create`, payload, { headers: getAuthHeaders() });
+  const url = `${API_URL}/create`;
+  const headers = getAuthHeaders();
+  console.log('[courseApi] POST', url, 'headers:', headers, 'payload:', payload);
+  return axios.post(url, payload, { headers });
 };
 
 // PUT /api/courses/:courseId
@@ -38,10 +47,16 @@ export const updateCourse = (courseId, courseData) => {
     category: courseData.category,
     level: courseData.level,
   };
-  return axios.put(`${API_URL}/${courseId}`, payload, { headers: getAuthHeaders() });
+  const url = `${API_URL}/${courseId}`;
+  const headers = getAuthHeaders();
+  console.log('[courseApi] PUT', url, 'headers:', headers, 'payload:', payload);
+  return axios.put(url, payload, { headers });
 };
 
 // DELETE /api/courses/:courseId
 export const deleteCourse = (courseId) => {
-  return axios.delete(`${API_URL}/${courseId}`, { headers: getAuthHeaders() });
+  const url = `${API_URL}/${courseId}`;
+  const headers = getAuthHeaders();
+  console.log('[courseApi] DELETE', url, 'headers:', headers);
+  return axios.delete(url, { headers });
 };

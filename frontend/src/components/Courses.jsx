@@ -1,7 +1,7 @@
 // src/components/Courses.jsx
 import React, { useEffect, useState } from 'react';
 import { FaCode, FaBrain, FaChartBar } from 'react-icons/fa';
-import api from '../api/api';
+// import api from '../apit/apit';
 import { toast } from 'react-toastify';
 import { getCourses, createCourse, enrollInCourse, unenrollFromCourse, getMyCourses } from '../api/courses';
 import { useAuth } from '../context/AuthContext';

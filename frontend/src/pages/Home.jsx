@@ -43,28 +43,6 @@ const Home = () => {
       </div>
       <Opportunities/>
 
-      {/* Meet Our Teachers Section */}
-       <section className="bg-primary-light dark:bg-dark-bg py-20">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-           <h2 className="text-3xl lg:text-4xl font-bold text-slate-800 dark:text-white">Highly Recommended Teachers</h2>
-          </div>
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {teachers.map(teacher => (
-              <div key={teacher.name} className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-lg text-center transform hover:scale-105 transition-transform">
-                <img src={teacher.img} alt={teacher.name} className="w-28 h-28 rounded-full mx-auto mb-4 border-4 border-primary-light dark:border-slate-600"/>
-                <h3 className="text-xl font-bold">{teacher.name}</h3>
-                <p className="text-slate-500 dark:text-slate-400 mb-4">{teacher.role}</p>
-                <div className="flex justify-center space-x-3 text-slate-500 dark:text-slate-400">
-                    <a href="#" className="hover:text-primary"><FaTwitter size={20}/></a>
-                    <a href="#" className="hover:text-primary"><FaLinkedin size={20}/></a>
-                </div>
-              </div>
-            ))}
-           </div>
-         </div>
-       </section>
-
        {/* Counsellors Section */}
       <CounsellorsSection />
 
@@ -73,8 +51,6 @@ const Home = () => {
 
       {/* Teachers Section */}
       <Teachers />
-      
-
       
 
       {/* CTA Section with fade-in animation */}

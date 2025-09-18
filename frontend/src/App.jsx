@@ -1,3 +1,4 @@
+import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Bubbles } from 'lucide-react';
 import 'react-toastify/dist/ReactToastify.css';
@@ -74,6 +75,10 @@ import TestPage from './components/TestPage';
 import { mockQuestions } from './data/mockQuestions';
 import QuestionEditor from './components/QuestionEditor';
 import HackathonPage from './components/HackathonPage';
+import SettingStudent from './components/dashboard/Setting';
+import QuestionPaperCreator from './components/QuestionPaperCreator';
+import AllTeachersPage from './pages/AllTeachersPage';
+import TeacherProfilePage from './pages/TeacherProfilePage';
 
 function App() {
   return (
@@ -87,7 +92,8 @@ function App() {
           <Route index element={<Bubbles />} />
 
           {/* <Route path="courses" element={<CoursesPage />} /> */}
-          <Route path="teachers" element={<TeachersPage />} />
+          <Route path="teachers" element={<AllTeachersPage />} />
+          <Route path="teacher/:id" element={<TeacherProfilePage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="/courses/:categorySlug" element={<CourseHubPage />} />
           <Route path="/courses/:categorySlug/:subjectSlug" element={<SubjectDetailsPage />} />
@@ -98,6 +104,7 @@ function App() {
           <Route path='/test-series' element={<TestSeriesPage />} />
           <Route path="/competitions" element={<CompetitionsPage />} />
           <Route path='/quizzes' element={<QuizzesPage />} />
+          <Route path='/question-paper-creator' element={<QuestionPaperCreator />} />
 
           <Route path='/live-classes' element={<LiveClassesPage />} />
           <Route path="/recorded-lecture" element={<RecordedLecturePage />} />
@@ -121,7 +128,7 @@ function App() {
           <Route path="/test-page" element={ <TestPage questions={mockQuestions} />} />
           <Route path='/question-editor' element={ <QuestionEditor />} />
           <Route path='/hackathon' element={<HackathonPage />} />
-        
+
         </Route>
 
         <Route path="/login" element={<Login />} />
@@ -161,6 +168,7 @@ function App() {
           <Route path="liveclasses" element={<LiveClasses />} />
           <Route path="tests" element={<Tests />} />
           <Route path="/profile/your-activity" element={<Activity />} />
+          <Route path="/profile/settings" element={<SettingStudent />} />
         </Route>
 
         <Route path="/become-counsellor" element={<BecomeCounsellorForm />} />

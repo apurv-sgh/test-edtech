@@ -12,6 +12,9 @@ export const ProfilePicture = ({
   showRating = false,
   rating = 4.5 
 }) => {
+  // Backend URL configuration
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const backendUrl = isLocalhost ? 'http://localhost:5000' : 'https://zegnite-backend2.onrender.com';
   const sizeClasses = {
     sm: 'w-12 h-12',
     md: 'w-24 h-24',
@@ -31,7 +34,7 @@ export const ProfilePicture = ({
       <div className={`${sizeClasses[size]} rounded-full overflow-hidden bg-white border-4 border-primary/20 shadow-lg`}>
         {src ? (
           <img 
-            src={src} 
+            src={src.startsWith('http') ? src : `${backendUrl}${src}`} 
             alt={alt} 
             className="w-full h-full object-cover"
             onError={(e) => {
@@ -117,6 +120,9 @@ export const DashboardProfilePicture = ({
   size = 'md',
   className = '' 
 }) => {
+  // Backend URL configuration
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const backendUrl = isLocalhost ? 'http://localhost:5000' : 'https://zegnite-backend2.onrender.com';
   const sizeClasses = {
     sm: 'w-10 h-10',
     md: 'w-12 h-12',
@@ -133,7 +139,7 @@ export const DashboardProfilePicture = ({
     <div className={`relative ${sizeClasses[size]} rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center ${className}`}>
       {src ? (
         <img 
-          src={src} 
+          src={src.startsWith('http') ? src : `${backendUrl}${src}`} 
           alt={alt} 
           className="w-full h-full rounded-full object-cover"
           onError={(e) => {

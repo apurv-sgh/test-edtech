@@ -4,11 +4,34 @@ import { motion } from 'framer-motion';
 import { FaClipboardList, FaTrophy, FaBook, FaCalendarAlt } from 'react-icons/fa';
 
 const opportunitiesData = [
-  { slug: 'quizzes', title: 'Quizzes', icon: <FaClipboardList />, isPageLink: true },
-  { slug: 'competition', title: 'Competition', icon: <FaTrophy />, isPageLink: true },
-  { slug: 'test-series', title: 'Test Series', icon: <FaBook />, isPageLink: true },
-  // This card now has a special 'isLive' flag
-  { slug: 'live-sessions', title: 'Live Session', icon: <FaCalendarAlt />, isLive: true },
+  { 
+    slug: 'quizzes', 
+    title: 'Quizzes', 
+    icon: <FaClipboardList />, 
+    description: 'Challenge your knowledge with a wide range of quizzes.', 
+    isPageLink: true 
+  },
+  { 
+    slug: 'competition', 
+    title: 'Competition', 
+    icon: <FaTrophy />, 
+    description: 'Compete with others and win exciting prizes.', 
+    isPageLink: true 
+  },
+  { 
+    slug: 'test-series', 
+    title: 'Test Series', 
+    icon: <FaBook />, 
+    description: 'Prepare for exams with our comprehensive test series.', 
+    isPageLink: true 
+  },
+  { 
+    slug: 'live-sessions', 
+    title: 'Live Session', 
+    icon: <FaCalendarAlt />, 
+    description: 'Join live interactive sessions with expert instructors.', 
+    isLive: true 
+  },
 ];
 
 const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } };
@@ -45,7 +68,11 @@ const Opportunities = () => {
                   <div className="inline-block p-3 rounded-xl mb-4 bg-primary-light/70 dark:bg-slate-800">
                     <div className="text-3xl text-primary">{op.icon}</div>
                   </div>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{op.title}</h3>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{op.title}</h3>
+                  {/* Description on hover */}
+                  <p className="text-slate-600 dark:text-slate-300 text-sm opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+                    {op.description}
+                  </p>
                 </div>
                 <div className="absolute -bottom-5 -right-5 w-24 h-24 bg-primary/10 dark:bg-primary/20 rounded-lg"></div>
               </Link>

@@ -8,6 +8,9 @@ import { BannerImage, ProfilePicture } from '../common/ImageComponent';
 import { useAuth } from '../../context/AuthContext';
 import ReviewCard from '../common/ReviewCard';
 import BookCounsellingModal from './BookCounsellingModal';
+import api from '../../api/api';
+
+const API_URL = `${api.defaults.baseURL}`;
 
 const CounsellorProfile = () => {
   const { id } = useParams();
@@ -104,7 +107,7 @@ const CounsellorProfile = () => {
   const fetchReviews = async (counsellorId) => {
     try {
       console.log('Fetching reviews for counsellor ID:', counsellorId);
-      const response = await fetch(`http://localhost:5000/api/counsellors/${counsellorId}/reviews`);
+      const response = await fetch(`${API_URL}/api/counsellors/${counsellorId}/reviews`);
       if (!response.ok) {
         console.log('Reviews API response not ok:', response.status);
         setReviews([]);
@@ -156,7 +159,7 @@ const CounsellorProfile = () => {
       console.log('Review data:', newReview);
       console.log('User token:', user?.token ? 'Available' : 'Not available');
       
-      const response = await fetch(`http://localhost:5000/api/counsellors/${counsellor._id}/reviews`, {
+      const response = await fetch(`${API_URL}/api/counsellors/${counsellor._id}/reviews`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

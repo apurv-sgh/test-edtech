@@ -13,7 +13,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: '*',
+    origin: 'http://localhost:5173',
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   }
@@ -26,16 +26,72 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Middleware
+// const allowedOrigins = process.env.CORS_ORIGINS 
+//   ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+//   : [
+//       // Production (Render deployment)
+//       'https://zegnite-frontend.onrender.com',     // Main frontend
+//       'https://zegnite-teach-back-oini.onrender.com', // Teacher backend
+//       // Development
+//       'http://localhost:5174',                    // Local frontend
+//       'http://localhost:5173',                    // Local frontend alternative
+//       'http://localhost:3000',                    // Local backend
+//       'http://localhost:4000'                     // Local teacher backend
+//     ];
+// app.use(cors({
+//   origin: [
+//     'http://localhost:5173',
+//     'http://localhost:4000',
+//     'http://127.0.0.1:5173',
+//     'http://127.0.0.1:4000',
+//     'http://192.168.31.180:5173',
+//   ],
+//   credentials: true
+// }));
+
+// Build allowed origin from env plus ensure local dev origin are always present
+const envOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : [];
+
+const devOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'http://localhost:4000'
+];
+
+const defaultProdOrigins = [
+  'https://zegnite-frontend.onrender.com',
+  'https://zegnite-teach-back-oini.onrender.com'
+];
+
+const allowedOrigins = Array.from(new Set([ ...defaultProdOrigins, ...envOrigins, ...devOrigins ]));
+
+
+// Log CORS origins for debugging
+console.log('CORS Origins configured:', allowedOrigins);
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:4000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:4000',
-    'http://192.168.31.180:5173',
-  ],
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if ((allowedOrigins.includes(origin)) ||   /^http:\/\/localhost:\d+$/.test(origin)) {
+      return callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  // origin: "https://zegnite-frontend.onrender.com",
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+
 app.use(express.json());
 
 // Import routes
@@ -50,6 +106,7 @@ const communityRoutes = require('./routes/communityRoutes');
 const quizzes = require('./routes/quizzes');
 const testSeriesRoutes = require('./routes/testSeriesRoutes');
 const competitionRoutes = require('./routes/competitions');
+const questionPaperRoutes = require('./routes/questionPaperRoutes');
 // Static file serving for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
@@ -64,6 +121,7 @@ app.use('/api/community', communityRoutes);
 app.use('/api/quizzes', quizzes);
 app.use('/api/tests', testSeriesRoutes);
 app.use('/api/competitions', competitionRoutes);
+app.use('/api/questionpapers', questionPaperRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -74,22 +132,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Root endpoint
+
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'EdTech Platform API Server',
-    version: '1.0.0',
-    endpoints: {
-        teachers: '/api/teachers',
-        courses: '/api/courses',
-        notes: '/api/notes',
-        videos: '/api/videos',
-        groupChat: '/api/group-chat',
-        health: '/api/health',
-        community: '/api/communities',
-        liveSessions: '/api/live-sessions'
-      }
-  });
+  res.send('API is Running...');
 });
 
 // Error handling middleware
@@ -193,7 +238,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, '127.0.0.1', () => {
+const PORT = process.env.PORT;
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });

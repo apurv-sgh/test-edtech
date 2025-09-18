@@ -29,7 +29,8 @@ const StudentSchema = new mongoose.Schema({
         default: 'Student'
     },
     profilePicture: {
-        type: String
+        type: String,
+        default: 'https://res.cloudinary.com/your_cloud_name/image/upload/v1/default_avatar.png' // default profile picture
     },
     dateOfBirth: {
         type: Date

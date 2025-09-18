@@ -3,6 +3,10 @@ import { FaLinkedin, FaBriefcase, FaClock, FaCheckCircle } from 'react-icons/fa'
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Button from '../Button';
+import api from '../../api/api';
+
+const API_URL = `${api.defaults.baseURL}`;
 
 const BecomeIndustryExpertForm = () => {
   const { user } = useAuth();
@@ -28,7 +32,7 @@ const BecomeIndustryExpertForm = () => {
     }
     const fetchProfile = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/industry-experts/me', {
+        const res = await axios.get(`${API_URL}/api/industry-experts/me`, {
           headers: { Authorization: `Bearer ${user.token}` },
         });
         if (res.data && res.data.status) {
@@ -56,7 +60,7 @@ const BecomeIndustryExpertForm = () => {
       if (typeof formData.skills === 'string') {
         formData.skills = formData.skills.split(',').map(s => s.trim()).filter(Boolean);
       }
-      await axios.post('http://localhost:5000/api/industry-experts/profile', formData, {
+      await axios.post(`${API_URL}/api/industry-experts/profile`, formData, {
         headers: {
           Authorization: `Bearer ${user.token}`,
         }
@@ -77,6 +81,11 @@ const BecomeIndustryExpertForm = () => {
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
           <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">Your application is under review!</h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">Our team is reviewing your details. You will be notified once verified.</p>
+          <div>
+          <Button onClick={() => navigate("/industry-experts/dashboard")} >
+            Back to Dashboard
+          </Button>
+        </div>        
         </div>
       </div>
     );
@@ -130,7 +139,7 @@ const BecomeIndustryExpertForm = () => {
             </div>
           </div>
           <button
-            onClick={() => window.history.back()}
+            onClick={() =>navigate('/industry-experts/dashboard')}
             className="w-full bg-primary hover:bg-primary-dark text-white py-3 rounded-xl font-semibold transition-colors"
           >
             Back to Experts

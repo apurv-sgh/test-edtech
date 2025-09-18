@@ -11,9 +11,9 @@ const SeminarSchema = new mongoose.Schema({
 const IndustryExpertProfileSchema = new mongoose.Schema({
   expert: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   linkedinUrl: { type: String, required: true },
-  company: { type: String, required: true },
+  currentCompany: { type: String,},
   experience: { type: Number, required: true },
-  domain: { type: String, required: true },
+  domain: { type: String, },
   skills: { type: [String], required: true },
   bio: { type: String, required: true },
   seminars: [SeminarSchema],

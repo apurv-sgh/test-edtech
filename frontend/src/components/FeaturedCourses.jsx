@@ -39,14 +39,13 @@ const FeaturedCourses = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Filtering logic - only show top-rated courses for featured section
+  // Filtering logic - show all courses for featured section
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase()) ||
       course.description.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = !category || course.category === category;
     const matchesLevel = !level || course.level === level;
-    const isTopRated = course.rating >= 4.5; // Only show courses with 4.5+ rating
-    return matchesSearch && matchesCategory && matchesLevel && isTopRated;
+    return matchesSearch && matchesCategory && matchesLevel;
   });
 
   // Show only top 6 featured courses
@@ -154,7 +153,7 @@ const FeaturedCourses = () => {
                     </div>
                     <div className="absolute top-4 left-4 bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
                       <FaStar size={12} />
-                      {course.rating?.toFixed(1) || '4.5'}
+                      {course.rating?.average?.toFixed(1) || '0.0'}
                     </div>
                   </div>
 

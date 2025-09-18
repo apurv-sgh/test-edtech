@@ -9,7 +9,9 @@ import AvailabilityManagement from './AvailabilityManagement';
 import PendingBookings from './PendingBookings';
 import UpcomingSessions from './UpcomingSessions';
 import TodaySessions from './TodaySessions';
+import api from '../../api/api';
 
+const API_URL = `${api.defaults.baseURL}`;
 
 const CounsellorDashboard = () => {
   const { user, logout } = useAuth();
@@ -57,7 +59,7 @@ const CounsellorDashboard = () => {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/counsellors/me', {
+      const res = await axios.get(`${API_URL}/api/counsellors/me`, {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
       setProfile(res.data);
@@ -97,7 +99,7 @@ const CounsellorDashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       // Fetch availability dashboard data which includes stats
-      const availabilityRes = await axios.get('http://localhost:5000/api/counsellor/availability/dashboard', {
+      const availabilityRes = await axios.get(`${API_URL}/api/counsellor/availability/dashboard`, {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
       
@@ -172,7 +174,7 @@ const CounsellorDashboard = () => {
       if (profilePicture) {
         formData.append('profilePicture', profilePicture);
       }
-      const res = await axios.post('http://localhost:5000/api/counsellors/profile', formData, {
+      const res = await axios.post(`${API_URL}/api/counsellors/profile`, formData, {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
       // Update local state immediately without page reload
